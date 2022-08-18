@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "stropts.h": "c"
+        "stropts.h": "c",
+        "*.inc": "c",
+        "thread": "c"
     }
 }

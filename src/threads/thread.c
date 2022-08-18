@@ -23,7 +23,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-
+static struct list priority_ready_list[PRI_MAX+1];
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -90,6 +90,9 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  // for(int i=0;i<PRI_MAX;i++){
+  //   list_init(&priority_ready_list[i]);
+  // }
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -200,7 +203,10 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  /* if(priority>curthread_priority){
+    schedule_by_priority
+  }
+  */
   return tid;
 }
 
@@ -215,7 +221,7 @@ thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
-
+  // how to handle THREAD_BLOCKED STATUS ?
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
 }
@@ -237,6 +243,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  // list_push_back(&priority_ready_list[t->priority],&t->elem);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -307,8 +314,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
+  if (cur != idle_thread) {
+    // priory pushback?
     list_push_back (&ready_list, &cur->elem);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -336,6 +345,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  // after set new priority, reschedule
 }
 
 /* Returns the current thread's priority. */
@@ -489,7 +499,20 @@ alloc_frame (struct thread *t, size_t size)
    idle_thread. */
 static struct thread *
 next_thread_to_run (void) 
+
 {
+  /*
+   for(int i=PRI_MAX;i>=0;i--) {
+     while(!list_empty(&priority_ready_list[i])) {
+       struct thread* front=list_entry(list_front(&priority_ready_list[i]),struct thread, elem);
+        if(front->status!=THREAD_BLOCKED) {
+          list_pop_front;
+          return front;
+        }else {
+          front pop. goto tail
+        }
+     }
+ */
   if (list_empty (&ready_list))
     return idle_thread;
   else
@@ -577,6 +600,24 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+static void
+priority_schedule(void)
+{
+
+}
+void
+tick_schedule(void)
+{
+  struct thread* cur=thread_current();
+  enum intr_level old_level;
+
+  old_level=intr_disable();
+  if(cur!=idle_thread) {
+    list_push_back (&priority_ready_list[cur->tick],&cur->elem);
+  }
+  cur->status=THREAD_READY;
+  priority_schedule();
 }
 
 /* Offset of `stack' member within `struct thread'.

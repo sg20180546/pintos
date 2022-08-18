@@ -68,6 +68,13 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
+      struct list_elem* e;
+      for(e=sema->waiters.head.next; e ; e=e->next) {
+        int donate_priority = list_entry(e,struct thread,elem)->priority;
+        if(donate_priority<thread_current()->priority) {
+          thread_set_priority(donate_priority-1);
+        }
+      }
       list_push_back (&sema->waiters, &thread_current ()->elem);
       thread_block ();
     }
