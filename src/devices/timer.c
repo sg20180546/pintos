@@ -30,13 +30,21 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+struct list sleep_list;
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
 timer_init (void) 
 {
+  // int i;
+  // for(i=0;i<PRI_MAX+1;i++){
+  //   list_init(&priority_sleep_list[i]);
+  // }
+  
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&sleep_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -87,27 +95,37 @@ timer_elapsed (int64_t then)
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
-timer_sleep (int64_t ticks) 
+timer_sleep (int64_t sleep_tick) 
 {
-  // static struct lock lock;
-  // static int once=0;
-  // if(once==0) {
-  //   lock_init(&lock);
-  //   once++;
-  // }
-  int64_t start = timer_ticks ();
-  thread_current()->tick=ticks;
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) {
+  struct thread* t=thread_current();
+  
+  enum intr_level level=intr_disable();
+
+
+  t->tick=sleep_tick+timer_ticks();
+  // int ttt=timer_ticks();
+  // printf("\n\n%s timer sleep : %d , timer_ticks : %d elapsed :%d\n",t->name,t->tick,ttt,timer_elapsed(ttt));
+
+
+  // while (timer_elapsed (start) < ticks) {
   //  thread_yield ();
-  tick_schedule();
-  // lock_acquire(&lock);
-  //   if(timer_elapsed(start)>=ticks) {
-  //     lock_release(&lock);
-  //     break;
-  //   }
-  //   lock_release(&lock);
-  }
+  //  thread_yield();
+  // printf("ticks %d\n",timer_elapsed (start));
+  // if(timer_elapsed(start)<ticks){
+  //   thread_yield();
+  // }
+  // insert to list
+  list_push_back(&sleep_list,&t->elem);
+  
+  // struct list_elem* iter;
+  // struct thread* t_iter;
+  // for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)) {
+  //   t_iter=list_entry(iter,struct thread,elem);
+  //   printf("check %s %d\n",t_iter->name,t_iter->tick);
+  // }
+  thread_block();
+  intr_set_level(level);
+  // }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -184,7 +202,38 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+
+  struct list_elem* iter;
+  // struct list_elem* elem;
+  struct thread* t_iter;
   ticks++;
+
+    for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list); ) {
+      t_iter=list_entry(iter ,struct thread, elem);
+      // printf("interrupt %s %d cur time :%d\n",t_iter->name,t_iter->tick,ticks);
+
+      if(ticks>=t_iter->tick){
+        // elem=iter;
+        // iter=list_next(iter);
+        iter=list_remove(iter);
+        thread_unblock(t_iter);
+      }else{
+        iter=list_next(iter);
+      }
+    }
+
+  // iter=list_begin(&sleep_list);
+
+  // while(iter!=list_end(&sleep_list)){
+  //   t_iter=list_entry(iter ,struct thread, elem);
+  //   printf("interrupt %s %d\n",t_iter->name,t_iter->tick);
+  //     if(ticks>=t_iter->tick){
+  //       list_remove(iter);
+  //       thread_unblock(t_iter);
+  //     }
+  //   iter=list_next(iter);
+  // }
+
   thread_tick ();
 }
 

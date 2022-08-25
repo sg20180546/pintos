@@ -2,6 +2,7 @@
     "files.associations": {
         "stropts.h": "c",
         "*.inc": "c",
-        "thread": "c"
+        "thread": "c",
+        "synch.h": "c"
     }
 }
