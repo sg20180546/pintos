@@ -492,7 +492,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
+  list_init(&t->priority_borrow_list);
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -633,9 +633,13 @@ thread_yield(void)
 
   old_level=intr_disable();
   if(cur!=idle_thread&&cur->status!=THREAD_DYING) {
+    if(cur->initial_priority){
+      cur->priority=cur->initial_priority;
+    }
     list_push_back (&priority_ready_list[cur->priority],&cur->elem);
-    cur->status=THREAD_READY;
+
   }
+  cur->status=THREAD_READY;
   schedule();
 
   intr_set_level(old_level);

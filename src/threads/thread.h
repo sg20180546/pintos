@@ -100,8 +100,10 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-    int start;
+    int initial_priority;
     int tick;
+    struct list priority_borrow_list;
+    struct list_elem priority_donate_elem;
   };
 
 /* If false (default), use round-robin scheduler.
