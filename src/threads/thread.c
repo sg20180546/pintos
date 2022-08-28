@@ -22,7 +22,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+// static struct list ready_list;
 static struct list priority_ready_list[PRI_MAX+1];
 
 /* List of all processes.  Processes are added to this list
@@ -209,7 +209,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  
+  // printf("thread create : cur thread :%s\n",thread_current()->name);
   if(priority>thread_current()->priority){
     thread_yield();
   }
@@ -299,13 +299,16 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
-  printf("i am exit : %s\n",thread_current()->name);
+  // printf("i am exit : %s\n",thread_current()->name);
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  struct thread* cur= thread_current();
+  list_remove(&cur->elem);
+  list_remove (&cur->allelem);
   thread_current ()->status = THREAD_DYING;
+  // printf("%s exit\n",cur->name);
   thread_yield();
   // printf("exit : %s\n",thread_current()->name);
   NOT_REACHED ();
@@ -354,10 +357,13 @@ thread_set_priority (int new_priority)
 {
   struct thread* t=thread_current();
   t->priority = new_priority;
-  printf("%s %d\n",t->name,t->priority);
-  // after set new priority, reschedule
-  list_remove(&t->elem);
-  list_push_back(&priority_ready_list[new_priority],&t->elem);
+  int i;
+  // for(i=PRI_MAX;i>new_priority;i--){
+  //   if(!list_empty(&priority_ready_list[i])){
+  //     thread_yield();
+  //     break;
+  //   }
+  // }
   thread_yield();
 }
 
@@ -584,10 +590,12 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-
-  if (cur != next){
-    prev = switch_threads (cur, next);
+  if(cur->priority!=PRI_DEFAULT){
+    ASSERT(cur!=next);
   }
+  // if (cur != next){
+  //   prev = switch_threads (cur, next);
+  // }
   // printf("%s %s %s\n",cur->name,next->name,prev->name);
   thread_schedule_tail (prev);
 }
@@ -608,23 +616,11 @@ allocate_tid (void)
 
 static struct thread* next_thread_to_run() {
   int i;
-
-  // struct thread* cur=thread_current();
-  // struct list_elem* iter;
-  // struct thread* t_iter;
   for(i=PRI_MAX;i>=0;i--) {
-    // for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);iter=list_next(&priority_ready_list[i])){
-    //   t_iter=list_entry(iter,struct thread,elem);
-    //   if(t_iter!=cur) {
-    //     list_remove(iter);
-    //     return t_iter;
-    //   }
-    // }
-
-    if(!list_empty(&priority_ready_list[i])) {
-      // struct thread* front=list_pop_front(&priority_ready_list[i]);
-
-      return list_entry(list_pop_front(&priority_ready_list[i]),struct thread, elem);
+    if(!list_empty(&priority_ready_list[i])) {   
+      struct thread* ret= list_entry(list_pop_front(&priority_ready_list[i]),struct thread, elem);
+      // printf("next thread to run : %s %d\n",ret->name,ret->priority);
+      return ret;
     }
   }
   return idle_thread;

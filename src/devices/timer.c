@@ -36,12 +36,7 @@ struct list sleep_list;
    and registers the corresponding interrupt. */
 void
 timer_init (void) 
-{
-  // int i;
-  // for(i=0;i<PRI_MAX+1;i++){
-  //   list_init(&priority_sleep_list[i]);
-  // }
-  
+{ 
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init(&sleep_list);
@@ -103,29 +98,11 @@ timer_sleep (int64_t sleep_tick)
 
 
   t->tick=sleep_tick+timer_ticks();
-  // int ttt=timer_ticks();
-  // printf("\n\n%s timer sleep : %d , timer_ticks : %d elapsed :%d\n",t->name,t->tick,ttt,timer_elapsed(ttt));
 
-
-  // while (timer_elapsed (start) < ticks) {
-  //  thread_yield ();
-  //  thread_yield();
-  // printf("ticks %d\n",timer_elapsed (start));
-  // if(timer_elapsed(start)<ticks){
-  //   thread_yield();
-  // }
-  // insert to list
   list_push_back(&sleep_list,&t->elem);
-  
-  // struct list_elem* iter;
-  // struct thread* t_iter;
-  // for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)) {
-  //   t_iter=list_entry(iter,struct thread,elem);
-  //   printf("check %s %d\n",t_iter->name,t_iter->tick);
-  // }
   thread_block();
   intr_set_level(level);
-  // }
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
