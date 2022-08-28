@@ -209,7 +209,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  // printf("thread create : cur thread :%s\n",thread_current()->name);
+
   if(priority>thread_current()->priority){
     thread_yield();
   }
@@ -299,7 +299,7 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
-  // printf("i am exit : %s\n",thread_current()->name);
+
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -308,9 +308,9 @@ thread_exit (void)
   list_remove(&cur->elem);
   list_remove (&cur->allelem);
   thread_current ()->status = THREAD_DYING;
-  // printf("%s exit\n",cur->name);
+
   thread_yield();
-  // printf("exit : %s\n",thread_current()->name);
+
   NOT_REACHED ();
 }
 
@@ -590,13 +590,11 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-  if(cur->priority!=PRI_DEFAULT){
-    ASSERT(cur!=next);
+
+  if (cur != next){
+    prev = switch_threads (cur, next);
   }
-  // if (cur != next){
-  //   prev = switch_threads (cur, next);
-  // }
-  // printf("%s %s %s\n",cur->name,next->name,prev->name);
+
   thread_schedule_tail (prev);
 }
 
@@ -619,31 +617,12 @@ static struct thread* next_thread_to_run() {
   for(i=PRI_MAX;i>=0;i--) {
     if(!list_empty(&priority_ready_list[i])) {   
       struct thread* ret= list_entry(list_pop_front(&priority_ready_list[i]),struct thread, elem);
-      // printf("next thread to run : %s %d\n",ret->name,ret->priority);
       return ret;
     }
   }
   return idle_thread;
 }
 
-// static void
-// schedule(void)
-// {
-
-//   struct thread *cur = running_thread ();
-//   struct thread *next = next_thread_to_run_by_tick ();
-//   struct thread *prev = NULL;
-
-//   ASSERT (intr_get_level () == INTR_OFF);
-//   ASSERT (cur->status != THREAD_RUNNING);
-//   ASSERT (is_thread (next));
-
-//   if (cur != next){
-
-//     prev = switch_threads (cur, next);
-//   }
-//   thread_schedule_tail (prev);
-// }
 void
 thread_yield(void)
 {
@@ -658,9 +637,9 @@ thread_yield(void)
     cur->status=THREAD_READY;
   }
   schedule();
-  // priority_schedule();
+
   intr_set_level(old_level);
-  // thread_block
+
 }
 
 /* Offset of `stack' member within `struct thread'.
