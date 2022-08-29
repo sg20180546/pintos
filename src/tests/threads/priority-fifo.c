@@ -88,12 +88,14 @@ simple_thread_func (void *data_)
 {
   struct simple_thread_data *data = data_;
   int i;
-  
+  struct thread* cur=thread_current();
   for (i = 0; i < ITER_CNT; i++) 
     {
+      printf("1 : %s %d\n",cur->name,cur->priority);
       lock_acquire (data->lock);
       *(*data->op)++ = data->id;
       lock_release (data->lock);
+      printf("2 : %s %d\n",cur->name,cur->priority);
       thread_yield ();
     }
 }

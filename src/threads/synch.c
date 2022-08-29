@@ -68,7 +68,12 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      struct thread* cur=thread_current();
+      if(is_interior(&cur->elem)){
+        list_remove(&cur->elem);
+      }
+      list_push_front (&sema->waiters, &cur->elem);
+      
       thread_block ();
     }
   sema->value--;
@@ -110,18 +115,16 @@ sema_up (struct semaphore *sema)
 {
   enum intr_level old_level;
   struct thread* t_iter;
-
+  struct thread* waiter;
   struct list_elem* iter;
   int max_pri=PRI_MIN;
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    struct thread* waiter;
-    // thread_unblock (list_entry (list_pop_front (&sema->waiters),
-    //                             struct thread, elem));
+
     for(iter=list_begin(&sema->waiters);iter!=list_end(&sema->waiters);iter=list_next(iter)) {
-      t_iter=list_entry(iter,struct thread, elem);
+      t_iter=list_entry(iter, struct thread, elem);
       if(t_iter->priority>=max_pri) {
         waiter=t_iter;
         max_pri=t_iter->priority;
@@ -132,7 +135,9 @@ sema_up (struct semaphore *sema)
     thread_unblock(waiter);
   }
   sema->value++;
+
   intr_set_level (old_level);
+  
   thread_yield();
 }
 
@@ -219,10 +224,10 @@ lock_acquire (struct lock *lock)
 
     t=cur;
     int i;
-    for(i=0;i<10;i++) {
-      if(!t->wait_on_lock){
-        break;
-      }
+    while(t->wait_on_lock) {
+      // if(!t->wait_on_lock){
+      //   break;
+      // }
       t=t->wait_on_lock->holder;
       t->priority=cur->priority;
     }

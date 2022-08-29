@@ -229,7 +229,8 @@ thread_block (void)
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
   // how to handle THREAD_BLOCKED STATUS ?
-  thread_current ()->status = THREAD_BLOCKED;
+  struct thread* cur=thread_current();
+  cur->status = THREAD_BLOCKED;
   schedule ();
 }
 
@@ -361,9 +362,14 @@ thread_set_priority (int new_priority)
     t->initial_priority=new_priority;
     thread_yield();
   }else{
-  t->priority = new_priority;
-  
-  thread_yield();}
+    t->priority = new_priority;
+    int i;
+    for(i=PRI_MAX;i>new_priority;i--){
+      if(!list_empty(&priority_ready_list[i])) {
+        thread_yield();
+      }
+    }
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -615,10 +621,21 @@ allocate_tid (void)
 
 static struct thread* next_thread_to_run() {
   int i;
+  struct thread* t_iter;
+  struct list_elem* iter;
   for(i=PRI_MAX;i>=0;i--) {
     if(!list_empty(&priority_ready_list[i])) {   
-      struct thread* ret= list_entry(list_pop_front(&priority_ready_list[i]),struct thread, elem);
-      return ret;
+      for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);iter=list_next(iter) ) {
+        t_iter=list_entry(iter, struct thread, elem);
+        if(t_iter->status==THREAD_READY) {
+          list_remove(iter);
+          return t_iter;
+        }
+      }
+      // struct thread* ret= list_entry(list_pop_front(&priority_ready_list[i]),struct thread, elem);
+      // if(ret->status==THREAD_READY){
+      //   return ret;
+      // }
     }
   }
   return idle_thread;
@@ -640,7 +657,6 @@ thread_yield(void)
   schedule();
 
   intr_set_level(old_level);
-
 }
 
 /* Offset of `stack' member within `struct thread'.
