@@ -354,17 +354,16 @@ thread_foreach (thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
-{
+{ 
+  
   struct thread* t=thread_current();
+  if(!list_empty(&t->priority_donations)) {
+    t->initial_priority=new_priority;
+    thread_yield();
+  }else{
   t->priority = new_priority;
-  int i;
-  // for(i=PRI_MAX;i>new_priority;i--){
-  //   if(!list_empty(&priority_ready_list[i])){
-  //     thread_yield();
-  //     break;
-  //   }
-  // }
-  thread_yield();
+  
+  thread_yield();}
 }
 
 /* Returns the current thread's priority. */
@@ -491,8 +490,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->initial_priority=priority;
   t->magic = THREAD_MAGIC;
-  list_init(&t->priority_borrow_list);
+  list_init(&t->priority_donations);
+  t->wait_on_lock=NULL;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -633,11 +634,7 @@ thread_yield(void)
 
   old_level=intr_disable();
   if(cur!=idle_thread&&cur->status!=THREAD_DYING) {
-    if(cur->initial_priority){
-      cur->priority=cur->initial_priority;
-    }
     list_push_back (&priority_ready_list[cur->priority],&cur->elem);
-
   }
   cur->status=THREAD_READY;
   schedule();

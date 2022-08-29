@@ -110,24 +110,26 @@ sema_up (struct semaphore *sema)
 {
   enum intr_level old_level;
   struct thread* t_iter;
-  struct thread* waiter;
+
   struct list_elem* iter;
-  struct thread* cur= thread_current();
-  int priority=PRI_MIN;
+  int max_pri=PRI_MIN;
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    for(iter=list_begin(&sema->waiters);iter!=list_end(&sema->waiters);iter=list_next(iter)){
+    struct thread* waiter;
+    // thread_unblock (list_entry (list_pop_front (&sema->waiters),
+    //                             struct thread, elem));
+    for(iter=list_begin(&sema->waiters);iter!=list_end(&sema->waiters);iter=list_next(iter)) {
       t_iter=list_entry(iter,struct thread, elem);
-      if(t_iter->priority >= priority){
+      if(t_iter->priority>=max_pri) {
         waiter=t_iter;
-        priority=t_iter->priority;
+        max_pri=t_iter->priority;
       }
     }
-    
+
     list_remove(&waiter->elem);
-    thread_unblock (waiter);
+    thread_unblock(waiter);
   }
   sema->value++;
   intr_set_level (old_level);
@@ -210,15 +212,24 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
   struct thread* cur=thread_current();
+  struct thread* t;
   if(lock->holder!=NULL){
-    if(cur->priority > lock->holder->priority) {
-      lock->holder->initial_priority=lock->holder->priority;
-      // list_push_front(&lock->holder->priority_borrow_list,&cur->priority_donate_elem);
-      lock->holder->priority=cur->priority; // bug piont
+    cur->wait_on_lock=lock;
+    list_push_back(&lock->holder->priority_donations,&cur->priority_donate_elem);
+
+    t=cur;
+    int i;
+    for(i=0;i<10;i++) {
+      if(!t->wait_on_lock){
+        break;
+      }
+      t=t->wait_on_lock->holder;
+      t->priority=cur->priority;
     }
   }
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  cur->wait_on_lock=NULL;
+  lock->holder = cur;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -251,8 +262,34 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+  struct thread* cur=thread_current();
+  struct thread* t_iter;
 
+  struct list_elem* iter;
+  int max_pri=PRI_MIN;
   lock->holder = NULL;
+  for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);) {
+    t_iter=list_entry(iter,struct thread,priority_donate_elem);
+    if(t_iter->wait_on_lock==lock){
+      iter=list_remove(iter);
+    }else{
+      iter=list_next(iter);
+    }
+  }
+  cur->priority=cur->initial_priority;
+  struct thread* high;
+  if(!list_empty(&cur->priority_donations)) {
+    for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);iter=list_next(iter)){
+      t_iter=list_entry(iter,struct thread,priority_donate_elem);
+      if(t_iter->priority > max_pri){
+        max_pri=t_iter->priority;
+        high=t_iter;
+      }
+    }
+    if(high->priority> cur->priority) {
+      cur->priority=high->priority;
+    }
+  }
   sema_up (&lock->semaphore);
 }
 
