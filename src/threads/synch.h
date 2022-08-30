@@ -4,6 +4,7 @@
 #include <list.h>
 #include <stdbool.h>
 
+bool thread_mlfqs;
 /* A counting semaphore. */
 struct semaphore 
   {

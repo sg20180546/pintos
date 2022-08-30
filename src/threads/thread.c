@@ -317,23 +317,7 @@ thread_exit (void)
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
-// void
-// thread_yield (void) 
-// {
-//   struct thread *cur = thread_current ();
-//   enum intr_level old_level;
-  
-//   ASSERT (!intr_context ());
 
-//   old_level = intr_disable ();
-//   if (cur != idle_thread) {
-//     // priory pushback?
-//     list_push_back (&ready_list, &cur->elem);
-//   }
-//   cur->status = THREAD_READY;
-//   schedule ();
-//   intr_set_level (old_level);
-// }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
@@ -382,9 +366,10 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice ) 
 {
   /* Not yet implemented. */
+  thread_current()->nice=nice;
 }
 
 /* Returns the current thread's nice value. */
@@ -392,7 +377,7 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -498,6 +483,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->initial_priority=priority;
+  t->nice=0;
   t->magic = THREAD_MAGIC;
   list_init(&t->priority_donations);
   t->wait_on_lock=NULL;

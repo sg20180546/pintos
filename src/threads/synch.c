@@ -218,22 +218,24 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
   struct thread* cur=thread_current();
   struct thread* t;
-  if(lock->holder!=NULL){
-    cur->wait_on_lock=lock;
-    list_push_back(&lock->holder->priority_donations,&cur->priority_donate_elem);
+  if(!thread_mlfqs) { 
+    if(lock->holder!=NULL){
+      cur->wait_on_lock=lock;
+      list_push_back(&lock->holder->priority_donations,&cur->priority_donate_elem);
 
-    t=cur;
+      t=cur;
 
-    while(t->wait_on_lock) {
-      // if(!t->wait_on_lock){
-      //   break;
-      // }
-      t=t->wait_on_lock->holder;
-      t->priority=cur->priority;
+      while(t->wait_on_lock) {
+        // if(!t->wait_on_lock){
+        //   break;
+        // }
+        t=t->wait_on_lock->holder;
+        t->priority=cur->priority;
+      }
     }
+    sema_down (&lock->semaphore);
+    cur->wait_on_lock=NULL;
   }
-  sema_down (&lock->semaphore);
-  cur->wait_on_lock=NULL;
   lock->holder = cur;
 }
 
@@ -265,38 +267,42 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
+
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   lock->holder = NULL;
-  
-  struct thread* cur=thread_current();
-  struct thread* t_iter;
-  struct list_elem* iter;
-  int max_pri=PRI_MIN;
-  
-  for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);) {
-    t_iter=list_entry(iter,struct thread,priority_donate_elem);
-    if(t_iter->wait_on_lock==lock){
-      iter=list_remove(iter);
-    }else{
-      iter=list_next(iter);
-    }
-  }
-  cur->priority=cur->initial_priority;
-  struct thread* high;
-  if(!list_empty(&cur->priority_donations)) {
-    for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);iter=list_next(iter)){
-      t_iter=list_entry(iter,struct thread,priority_donate_elem);
-      if(t_iter->priority > max_pri){
-        max_pri=t_iter->priority;
-        high=t_iter;
+    if(!thread_mlfqs){
+      struct thread* cur=thread_current();
+      struct thread* t_iter;
+      struct list_elem* iter;
+      int max_pri=PRI_MIN;
+      
+      for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);) {
+        t_iter=list_entry(iter,struct thread,priority_donate_elem);
+        if(t_iter->wait_on_lock==lock){
+          iter=list_remove(iter);
+        }else{
+          iter=list_next(iter);
+        }
       }
-    }
+      cur->priority=cur->initial_priority;
+      struct thread* high;
+      if(!list_empty(&cur->priority_donations)) {
+        for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);iter=list_next(iter)){
+          t_iter=list_entry(iter,struct thread,priority_donate_elem);
+          if(t_iter->priority > max_pri){
+            max_pri=t_iter->priority;
+            high=t_iter;
+          }
+        }
 
-    ASSERT(high!=NULL);
-    if(high->priority> cur->priority) {
-      cur->priority=high->priority;
-    }
+        ASSERT(high!=NULL);
+        if(high->priority> cur->priority) {
+          cur->priority=high->priority;
+        }
+      }
+  }else {
+    
   }
   sema_up (&lock->semaphore);
 }
@@ -372,7 +378,6 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   waiter.priority=thread_get_priority();
   sema_init (&waiter.semaphore, 0);
-  // list_push_back (&cond->waiters, &waiter.elem);
   list_insert_ordered(&cond->waiters,&waiter.elem,priority_cmp,NULL);
   lock_release (lock);
   sema_down (&waiter.semaphore);

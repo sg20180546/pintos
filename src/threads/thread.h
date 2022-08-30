@@ -105,6 +105,8 @@ struct thread
     struct lock* wait_on_lock;
     struct list priority_donations;
     struct list_elem priority_donate_elem;
+    int nice;
+    int recent_cpu;
   };
 
 /* If false (default), use round-robin scheduler.

@@ -181,36 +181,19 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
 
   struct list_elem* iter;
-  // struct list_elem* elem;
   struct thread* t_iter;
   ticks++;
 
     for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list); ) {
       t_iter=list_entry(iter ,struct thread, elem);
-      // printf("interrupt %s %d cur time :%d\n",t_iter->name,t_iter->tick,ticks);
-
       if(ticks>=t_iter->tick){
-        // elem=iter;
-        // iter=list_next(iter);
+
         iter=list_remove(iter);
         thread_unblock(t_iter);
       }else{
         iter=list_next(iter);
       }
     }
-
-  // iter=list_begin(&sleep_list);
-
-  // while(iter!=list_end(&sleep_list)){
-  //   t_iter=list_entry(iter ,struct thread, elem);
-  //   printf("interrupt %s %d\n",t_iter->name,t_iter->tick);
-  //     if(ticks>=t_iter->tick){
-  //       list_remove(iter);
-  //       thread_unblock(t_iter);
-  //     }
-  //   iter=list_next(iter);
-  // }
-
   thread_tick ();
 }
 
