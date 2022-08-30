@@ -356,10 +356,11 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 { 
-  
+
   struct thread* t=thread_current();
+  t->initial_priority=new_priority;
   if(!list_empty(&t->priority_donations)) {
-    t->initial_priority=new_priority;
+    
     thread_yield();
   }else{
     t->priority = new_priority;
