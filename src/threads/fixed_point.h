@@ -1,8 +1,12 @@
 #ifndef FIXED_POINT_H_
 #define FIXED_POINT_H_
+#include <stdint.h>
 #define F (1<<14)
-#define INT_MAX ((1<<31)-1)
-#define INT_MIN (-(1<<31))
+// #define INT_MAX ((1<<31)-1)
+// #define INT_MIN (-(1<<31))
+
+typedef int fp_t;
+
 
 #define int_to_fp(n) (n*F)
 #define fp_to_int_round(x) x>=0 ? x+(F/2) :\

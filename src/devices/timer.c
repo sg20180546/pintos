@@ -7,7 +7,9 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-  
+#include "threads/fixed_point.h"
+
+fp_t load_avg;
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -95,10 +97,10 @@ timer_sleep (int64_t sleep_tick)
   struct thread* t=thread_current();
   
   enum intr_level level=intr_disable();
-
-
   t->tick=sleep_tick+timer_ticks();
-
+  if(is_interior(&t->elem)){
+    list_remove(&t->elem);
+  }
   list_push_back(&sleep_list,&t->elem);
   thread_block();
   intr_set_level(level);
@@ -195,6 +197,21 @@ timer_interrupt (struct intr_frame *args UNUSED)
       }
     }
   thread_tick ();
+
+  if(thread_mlfqs) {
+    
+    increase_recent_cpu(); // every timer interrupt
+    if(ticks%TIMER_FREQ==0) { // every second
+      recalculate_load_avg();
+      rearrange_mlfqs_priority_ready_list();
+    }
+
+    if(ticks%4==0){ // every 4 ticks
+      printf("in timer interrupt load avg %d\n",fp_to_int(load_avg*100));
+      recalculate_mlfqs_priority(thread_current());
+    }
+
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

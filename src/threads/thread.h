@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-
+#include "fixed_point.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -106,13 +106,15 @@ struct thread
     struct list priority_donations;
     struct list_elem priority_donate_elem;
     int nice;
-    int recent_cpu;
+    fp_t recent_cpu;
+    bool recalculated;
   };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+extern fp_t load_avg;
 
 void thread_init (void);
 void thread_start (void);
@@ -142,9 +144,15 @@ void thread_set_priority (int);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
-int thread_get_recent_cpu (void);
+fp_t thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+inline void increase_recent_cpu(void);
+void recalculate_load_avg(void);
+void recalculate_mlfqs_recent_cpu(struct thread* t);
+
+void recalculate_mlfqs_priority(struct thread* t);
+void rearrange_mlfqs_priority_ready_list(void);
 // void thread_yield_by_tick(void);
 
 #endif /* threads/thread.h */

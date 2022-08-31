@@ -59,6 +59,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+fp_t load_avg;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -85,8 +86,8 @@ static tid_t allocate_tid (void);
    allocator before trying to create any threads with
    thread_create().
 
-   It is not safe to call thread_current() until this function
-   finishes. */
+   It is not safe to call t until this function
+   finishes. t->recent_cpu+=F;_init (void) */
 void
 thread_init (void) 
 {
@@ -116,7 +117,7 @@ thread_start (void)
 
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
-
+  load_avg=0;
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
@@ -340,18 +341,19 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 { 
-
-  struct thread* t=thread_current();
-  t->initial_priority=new_priority;
-  if(!list_empty(&t->priority_donations)) {
-    
-    thread_yield();
-  }else{
-    t->priority = new_priority;
-    int i;
-    for(i=PRI_MAX;i>new_priority;i--){
-      if(!list_empty(&priority_ready_list[i])) {
-        thread_yield();
+  if(!thread_mlfqs){
+    struct thread* t=thread_current();
+    t->initial_priority=new_priority;
+    if(!list_empty(&t->priority_donations)) {
+      
+      thread_yield();
+    }else{
+      t->priority = new_priority;
+      int i;
+      for(i=PRI_MAX;i>new_priority;i--){
+        if(!list_empty(&priority_ready_list[i])) {
+          thread_yield();
+        }
       }
     }
   }
@@ -369,7 +371,14 @@ void
 thread_set_nice (int nice ) 
 {
   /* Not yet implemented. */
-  thread_current()->nice=nice;
+  enum intr_level old_level=intr_disable();
+  
+  struct thread* t=thread_current();
+  t->nice=nice;
+  recalculate_mlfqs_recent_cpu(t);
+  recalculate_mlfqs_priority(t);
+  intr_set_level(old_level);
+  thread_yield();
 }
 
 /* Returns the current thread's nice value. */
@@ -385,15 +394,17 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  // enum intr_level old_level=intr_disable();
+  return fp_to_int(load_avg*TIMER_FREQ);
+  // intr_set_level(old_level);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
-int
+fp_t
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return thread_current()->recent_cpu*TIMER_FREQ;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -487,6 +498,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->priority_donations);
   t->wait_on_lock=NULL;
+  t->recent_cpu=0;
+  t->recalculated=false;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -619,10 +632,6 @@ static struct thread* next_thread_to_run() {
           return t_iter;
         }
       }
-      // struct thread* ret= list_entry(list_pop_front(&priority_ready_list[i]),struct thread, elem);
-      // if(ret->status==THREAD_READY){
-      //   return ret;
-      // }
     }
   }
   return idle_thread;
@@ -645,6 +654,75 @@ thread_yield(void)
 
   intr_set_level(old_level);
 }
+
+inline void increase_recent_cpu(void){
+  struct thread* t=thread_current();
+  if(t!=idle_thread){
+    t->recent_cpu=add_mixed(t->recent_cpu,1);
+  }
+}
+void recalculate_load_avg(void){
+  int ready_threads;
+  fp_t ready_threads_fp;
+  ASSERT(load_avg>=0);
+  int i;
+  for(i=PRI_MAX;i>=0;i--){
+    ready_threads+=list_size(&priority_ready_list[i]);
+    if(ready_threads<0){
+      // printf("list %d : %d\n",i,ready_threads);
+      // ASSERT(false);
+    }
+  }
+  ready_threads_fp=int_to_fp(ready_threads);
+  ASSERT(ready_threads>=0);
+  // load_avg = (59/60)*load_avg + (1/60)*ready_threads
+  // load_avg=add_fp(div_mixed(mult_mixed(load_avg, 59), 60), div_mixed(ready_threads_fp, 60)); // load_avg
+  load_avg = 59*load_avg/60 + ready_threads_fp/60;
+  // printf("recal load avg : %d %d\n",load_avg,ready_threads_fp);
+  ASSERT(load_avg>=0);
+}
+
+void recalculate_mlfqs_recent_cpu(struct thread* t){
+  // recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
+
+  t->recent_cpu=int_to_fp(t->nice)+ div_fp((2*load_avg),add_mixed(2*load_avg,1)); // fp 
+}
+void recalculate_mlfqs_priority(struct thread* t) {
+  recalculate_mlfqs_recent_cpu(t);
+  int recent_cpu_int=fp_to_int(t->recent_cpu);
+  
+  // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
+  t->priority=PRI_MAX-(recent_cpu_int/4) - (t->nice*2); // int
+}
+void rearrange_mlfqs_priority_ready_list(void){
+  struct thread* t_iter;
+  struct list_elem* iter;
+  int i;
+  for(i=PRI_MAX;i>=0;i--){
+
+    for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);){
+      
+      t_iter=list_entry(iter,struct thread, elem);
+      if(!t_iter->recalculated){
+        recalculate_mlfqs_priority(t_iter);
+        iter=list_remove(iter);
+        list_push_back(&priority_ready_list[t_iter->priority],&t_iter->elem);
+        t_iter->recalculated=true;
+      }else{
+        iter=list_next(iter);
+      }
+    }
+  }
+  for(i=PRI_MAX;i>=0;i--){
+    for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);iter=list_next(iter)){
+      t_iter=list_entry(iter,struct thread, elem);
+      t_iter->recalculated=false;
+    }
+  }
+}
+
+
+
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
