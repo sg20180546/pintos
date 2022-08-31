@@ -178,6 +178,17 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
+
+static void recalculate_mlfqs_sleep_list_thread(void) {
+  struct list_elem* iter;
+  struct thread* t_iter;
+  for(iter=list_begin(&sleep_list);iter=list_end(&sleep_list);iter=list_next(iter)) {
+    t_iter=list_entry(iter,struct thread, elem);
+    recalculate_mlfqs_recent_cpu(t_iter);
+    recalculate_mlfqs_priority(t_iter);
+  }
+}
+
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
@@ -207,7 +218,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
 
     if(ticks%4==0){ // every 4 ticks
-      printf("in timer interrupt load avg %d\n",fp_to_int(load_avg*100));
+      // printf("in timer interrupt load avg %d\n",fp_to_int(load_avg*100));
+      recalculate_mlfqs_recent_cpu(thread_current());
       recalculate_mlfqs_priority(thread_current());
     }
 

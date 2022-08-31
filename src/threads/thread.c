@@ -661,24 +661,29 @@ inline void increase_recent_cpu(void){
     t->recent_cpu=add_mixed(t->recent_cpu,1);
   }
 }
-void recalculate_load_avg(void){
-  int ready_threads;
-  fp_t ready_threads_fp;
-  ASSERT(load_avg>=0);
+size_t ready_thread_size(){
+  size_t ready_threads=1; // one for current running thread
+  if(thread_current()==idle_thread){
+    ready_threads=0;
+  }
+
   int i;
   for(i=PRI_MAX;i>=0;i--){
     ready_threads+=list_size(&priority_ready_list[i]);
-    if(ready_threads<0){
-      // printf("list %d : %d\n",i,ready_threads);
-      // ASSERT(false);
-    }
   }
+  return ready_threads;
+}
+void recalculate_load_avg(void){
+  size_t ready_threads=ready_thread_size();
+  // EXPECT_EQ(ready_threads,0);
+  fp_t ready_threads_fp;
+  ASSERT(load_avg>=0);
+  
   ready_threads_fp=int_to_fp(ready_threads);
   ASSERT(ready_threads>=0);
   // load_avg = (59/60)*load_avg + (1/60)*ready_threads
-  // load_avg=add_fp(div_mixed(mult_mixed(load_avg, 59), 60), div_mixed(ready_threads_fp, 60)); // load_avg
   load_avg = 59*load_avg/60 + ready_threads_fp/60;
-  // printf("recal load avg : %d %d\n",load_avg,ready_threads_fp);
+  
   ASSERT(load_avg>=0);
 }
 
@@ -688,7 +693,7 @@ void recalculate_mlfqs_recent_cpu(struct thread* t){
   t->recent_cpu=int_to_fp(t->nice)+ div_fp((2*load_avg),add_mixed(2*load_avg,1)); // fp 
 }
 void recalculate_mlfqs_priority(struct thread* t) {
-  recalculate_mlfqs_recent_cpu(t);
+
   int recent_cpu_int=fp_to_int(t->recent_cpu);
   
   // priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
@@ -697,6 +702,7 @@ void recalculate_mlfqs_priority(struct thread* t) {
 void rearrange_mlfqs_priority_ready_list(void){
   struct thread* t_iter;
   struct list_elem* iter;
+  struct list_elem* buffer;
   int i;
   for(i=PRI_MAX;i>=0;i--){
 
@@ -704,15 +710,18 @@ void rearrange_mlfqs_priority_ready_list(void){
       
       t_iter=list_entry(iter,struct thread, elem);
       if(!t_iter->recalculated){
+        recalculate_mlfqs_recent_cpu(t_iter);
         recalculate_mlfqs_priority(t_iter);
+        buffer=iter;
         iter=list_remove(iter);
-        list_push_back(&priority_ready_list[t_iter->priority],&t_iter->elem);
+        list_push_back(&priority_ready_list[t_iter->priority],buffer);
         t_iter->recalculated=true;
       }else{
         iter=list_next(iter);
       }
     }
   }
+
   for(i=PRI_MAX;i>=0;i--){
     for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);iter=list_next(iter)){
       t_iter=list_entry(iter,struct thread, elem);

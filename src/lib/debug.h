@@ -32,6 +32,18 @@ void debug_backtrace_all (void);
         if (CONDITION) { } else {                               \
                 PANIC ("assertion `%s' failed.", #CONDITION);   \
         }
+#define EXPECT_EQ(L,R) \
+         if(L==R) { } else {                                           \
+            PANIC("EXPECT_EQ failed ! %s=%d  %s=%d",#L,L,#R,R); \
+         }
+#define EXPECT_NE(L,R) \
+         if(L!=R) { } else {                                           \
+            PANIC("EXPECT_NEQ failed ! %s=%d  %s=%d",#L,L,#R,R); \
+         }
+#define EXPECT_LTE(L,R) \
+         if(L<=R) { } else {                                           \
+            PANIC("EXPECT_LTE failed ! %s=%d  %s=%d",#L,L,#R,R); \
+         }
 #define NOT_REACHED() PANIC ("executed an unreachable statement");
 #else
 #define ASSERT(CONDITION) ((void) 0)
