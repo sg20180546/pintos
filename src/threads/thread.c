@@ -681,7 +681,7 @@ void mlfqs_recalculate_load_avg(void){
   // load_avg = (59/60)*load_avg + (1/60)*ready_threads
   load_avg = ((59*load_avg)+ready_threads_fp)/60;
   
-  ASSERT(load_avg>=0);
+  // ASSERT(load_avg>=0);
 }
 
 void mlfqs_recalculate_recent_cpu(struct thread* t){
@@ -692,16 +692,16 @@ void mlfqs_recalculate_recent_cpu(struct thread* t){
   EXPECT_LTE(0,load_avg);
   fp_t fountain=(2*load_avg*F)/add_mixed(2*load_avg,1);
 
-  EXPECT_LTE(0,fountain);
+  // EXPECT_LTE(0,fountain);
 
   fp_t recent_cpu=((t->recent_cpu/F)*fountain);
-  EXPECT_LTE(0,recent_cpu);
+  // EXPECT_LTE(0,recent_cpu);
 
   recent_cpu=add_mixed(recent_cpu,t->nice);
 
   t->recent_cpu=max(recent_cpu,0);
 
-  EXPECT_LTE(0,t->recent_cpu);
+  // EXPECT_LTE(0,t->recent_cpu);
 }
 void mlfqs_recalculate_priority(struct thread* t) {
 

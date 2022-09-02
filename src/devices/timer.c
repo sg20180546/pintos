@@ -208,7 +208,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list); ) {
       t_iter=list_entry(iter ,struct thread, elem);
       if(ticks>=t_iter->tick){
-        
         iter=list_remove(iter);
         thread_unblock(t_iter);
       }else{
@@ -219,20 +218,20 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   if(thread_mlfqs) {
 
-    
+    t_iter=thread_current();
     mlfqs_increase_recent_cpu();
     
     if(PER_SECOND(ticks)) { // every second
       mlfqs_recalculate_load_avg();
       mlfqs_recalculate_recent_cpu_in_sleep_list();
       mlfqs_recalculate_recent_cpu_in_priority_ready_list();
-      mlfqs_recalculate_recent_cpu(thread_current());
+      mlfqs_recalculate_recent_cpu(t_iter);
     }
 
     if(ticks%4==0){ // every 4 ticks
       mlfqs_recalculate_priority_in_sleep_list();
       mlfqs_rearrange_priority_ready_list();
-      mlfqs_recalculate_priority(thread_current());
+      mlfqs_recalculate_priority(t_iter);
       if(!is_cur_priority_max()) {
           intr_yield_on_return();
       }

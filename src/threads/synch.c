@@ -222,20 +222,16 @@ lock_acquire (struct lock *lock)
     if(lock->holder!=NULL){
       cur->wait_on_lock=lock;
       list_push_back(&lock->holder->priority_donations,&cur->priority_donate_elem);
-
       t=cur;
-
       while(t->wait_on_lock) {
-        // if(!t->wait_on_lock){
-        //   break;
-        // }
         t=t->wait_on_lock->holder;
         t->priority=cur->priority;
       }
     }
-    sema_down (&lock->semaphore);
+    
     cur->wait_on_lock=NULL;
   }
+  sema_down (&lock->semaphore);
   lock->holder = cur;
 }
 
@@ -301,8 +297,6 @@ lock_release (struct lock *lock)
           cur->priority=high->priority;
         }
       }
-  }else {
-    
   }
   sema_up (&lock->semaphore);
 }
