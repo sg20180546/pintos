@@ -7,7 +7,9 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-  
+#include "threads/fixed_point.h"
+
+fp_t load_avg;
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -17,6 +19,7 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+#define PER_SECOND(tick) (tick%TIMER_FREQ==0) ? true : false
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -36,12 +39,7 @@ struct list sleep_list;
    and registers the corresponding interrupt. */
 void
 timer_init (void) 
-{
-  // int i;
-  // for(i=0;i<PRI_MAX+1;i++){
-  //   list_init(&priority_sleep_list[i]);
-  // }
-  
+{ 
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init(&sleep_list);
@@ -100,32 +98,14 @@ timer_sleep (int64_t sleep_tick)
   struct thread* t=thread_current();
   
   enum intr_level level=intr_disable();
-
-
   t->tick=sleep_tick+timer_ticks();
-  // int ttt=timer_ticks();
-  // printf("\n\n%s timer sleep : %d , timer_ticks : %d elapsed :%d\n",t->name,t->tick,ttt,timer_elapsed(ttt));
-
-
-  // while (timer_elapsed (start) < ticks) {
-  //  thread_yield ();
-  //  thread_yield();
-  // printf("ticks %d\n",timer_elapsed (start));
-  // if(timer_elapsed(start)<ticks){
-  //   thread_yield();
+  // if(is_interior(&t->elem)){
+  //   list_remove(&t->elem);
   // }
-  // insert to list
   list_push_back(&sleep_list,&t->elem);
-  
-  // struct list_elem* iter;
-  // struct thread* t_iter;
-  // for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)) {
-  //   t_iter=list_entry(iter,struct thread,elem);
-  //   printf("check %s %d\n",t_iter->name,t_iter->tick);
-  // }
   thread_block();
   intr_set_level(level);
-  // }
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -199,41 +179,65 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
+static void mlfqs_recalculate_priority_in_sleep_list(void){
+  struct thread* t_iter;
+  struct list_elem* iter;
+  for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)) {
+    t_iter =list_entry(iter,struct thread, elem);
+    mlfqs_recalculate_priority(t_iter);
+  }
+}
+
+static void mlfqs_recalculate_recent_cpu_in_sleep_list(void){
+  struct list_elem* iter;
+  struct thread* t_iter;
+  for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)){ 
+    t_iter=list_entry(iter,struct thread,elem);
+    mlfqs_recalculate_recent_cpu(t_iter);
+  }
+}
+
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
 
   struct list_elem* iter;
-  // struct list_elem* elem;
   struct thread* t_iter;
   ticks++;
 
     for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list); ) {
       t_iter=list_entry(iter ,struct thread, elem);
-      // printf("interrupt %s %d cur time :%d\n",t_iter->name,t_iter->tick,ticks);
-
       if(ticks>=t_iter->tick){
-        // elem=iter;
-        // iter=list_next(iter);
         iter=list_remove(iter);
         thread_unblock(t_iter);
       }else{
         iter=list_next(iter);
       }
     }
+  
 
-  // iter=list_begin(&sleep_list);
+  if(thread_mlfqs) {
 
-  // while(iter!=list_end(&sleep_list)){
-  //   t_iter=list_entry(iter ,struct thread, elem);
-  //   printf("interrupt %s %d\n",t_iter->name,t_iter->tick);
-  //     if(ticks>=t_iter->tick){
-  //       list_remove(iter);
-  //       thread_unblock(t_iter);
-  //     }
-  //   iter=list_next(iter);
-  // }
+    t_iter=thread_current();
+    mlfqs_increase_recent_cpu();
+    
+    if(PER_SECOND(ticks)) { // every second
+      mlfqs_recalculate_load_avg();
+      mlfqs_recalculate_recent_cpu_in_sleep_list();
+      mlfqs_recalculate_recent_cpu_in_priority_ready_list();
+      mlfqs_recalculate_recent_cpu(t_iter);
+    }
 
+    if(ticks%4==0){ // every 4 ticks
+      mlfqs_recalculate_priority_in_sleep_list();
+      mlfqs_rearrange_priority_ready_list();
+      mlfqs_recalculate_priority(t_iter);
+      if(!is_cur_priority_max()) {
+          intr_yield_on_return();
+      }
+    }
+
+  }
   thread_tick ();
 }
 

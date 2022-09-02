@@ -29,17 +29,21 @@ test_mlfqs_block (void)
 
   msg ("Main thread acquiring lock.");
   lock_init (&lock);
+  ASSERT(lock.holder==NULL);
   lock_acquire (&lock);
-  
+  ASSERT(lock.holder==thread_current());
   msg ("Main thread creating block thread, sleeping 25 seconds...");
   thread_create ("block", PRI_DEFAULT, block_thread, &lock);
+  ASSERT(lock.holder==thread_current());
   timer_sleep (25 * TIMER_FREQ);
-
+  ASSERT(lock.holder==thread_current()); // error point
   msg ("Main thread spinning for 5 seconds...");
+
   start_time = timer_ticks ();
+  ASSERT(lock.holder==thread_current());
   while (timer_elapsed (start_time) < 5 * TIMER_FREQ)
     continue;
-
+  ASSERT(lock.holder==thread_current());
   msg ("Main thread releasing lock.");
   lock_release (&lock);
 
@@ -58,6 +62,7 @@ block_thread (void *lock_)
     continue;
 
   msg ("Block thread acquiring lock...");
+
   lock_acquire (lock);
 
   msg ("...got it.");

@@ -3,6 +3,8 @@
         "stropts.h": "c",
         "*.inc": "c",
         "thread": "c",
-        "synch.h": "c"
+        "synch.h": "c",
+        "vaddr.h": "c",
+        "timer.h": "c"
     }
 }
