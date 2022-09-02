@@ -342,19 +342,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 { 
+
   if(!thread_mlfqs){
-    struct thread* t=thread_current();
-    t->initial_priority=new_priority;
+  struct thread* t=thread_current();
+  t->initial_priority=new_priority;    
     if(!list_empty(&t->priority_donations)) {
-      
       thread_yield();
     }else{
       t->priority = new_priority;
-      // for(i=PRI_MAX;i>new_priority;i--){
-      //   if(!list_empty(&priority_ready_list[i])) {
-      //     thread_yield();
-      //   }
-      // }
       if(!is_cur_priority_max()){
         thread_yield();
       }
@@ -672,16 +667,13 @@ size_t ready_thread_size(){
 }
 void mlfqs_recalculate_load_avg(void){
   size_t ready_threads=ready_thread_size();
-  // EXPECT_EQ(ready_threads,0);
   fp_t ready_threads_fp;
-  ASSERT(load_avg>=0);
   
   ready_threads_fp=int_to_fp(ready_threads);
 
   // load_avg = (59/60)*load_avg + (1/60)*ready_threads
   load_avg = ((59*load_avg)+ready_threads_fp)/60;
   
-  // ASSERT(load_avg>=0);
 }
 
 void mlfqs_recalculate_recent_cpu(struct thread* t){
@@ -689,7 +681,7 @@ void mlfqs_recalculate_recent_cpu(struct thread* t){
     recent_cpu = 
         (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
   */
-  EXPECT_LTE(0,load_avg);
+  // EXPECT_LTE(0,load_avg);
   fp_t fountain=(2*load_avg*F)/add_mixed(2*load_avg,1);
 
   // EXPECT_LTE(0,fountain);
