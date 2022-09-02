@@ -44,6 +44,10 @@ void debug_backtrace_all (void);
          if(L<=R) { } else {                                           \
             PANIC("EXPECT_LTE failed ! %s=%d  %s=%d",#L,L,#R,R); \
          }
+#define EXPECT_LT(L,R) \
+         if(L<R) { } else {                                           \
+            PANIC("EXPECT_LT failed ! %s=%d  %s=%d",#L,L,#R,R); \
+         }
 #define NOT_REACHED() PANIC ("executed an unreachable statement");
 #else
 #define ASSERT(CONDITION) ((void) 0)

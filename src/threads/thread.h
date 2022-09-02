@@ -144,15 +144,17 @@ void thread_set_priority (int);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
-fp_t thread_get_recent_cpu (void);
+int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-inline void increase_recent_cpu(void);
-void recalculate_load_avg(void);
-void recalculate_mlfqs_recent_cpu(struct thread* t);
+inline void mlfqs_increase_recent_cpu(void);
+void mlfqs_recalculate_load_avg(void);
+void mlfqs_recalculate_recent_cpu(struct thread* t);
+void mlfqs_recalculate_priority(struct thread* t);
+void mlfqs_rearrange_priority_ready_list(void);
+void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void);
 
-void recalculate_mlfqs_priority(struct thread* t);
-void rearrange_mlfqs_priority_ready_list(void);
+bool is_cur_priority_max(void);
 // void thread_yield_by_tick(void);
 
 #endif /* threads/thread.h */

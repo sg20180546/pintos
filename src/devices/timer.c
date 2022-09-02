@@ -19,6 +19,7 @@ fp_t load_avg;
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+#define PER_SECOND(tick) (tick%TIMER_FREQ==0) ? true : false
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -98,9 +99,9 @@ timer_sleep (int64_t sleep_tick)
   
   enum intr_level level=intr_disable();
   t->tick=sleep_tick+timer_ticks();
-  if(is_interior(&t->elem)){
-    list_remove(&t->elem);
-  }
+  // if(is_interior(&t->elem)){
+  //   list_remove(&t->elem);
+  // }
   list_push_back(&sleep_list,&t->elem);
   thread_block();
   intr_set_level(level);
@@ -178,14 +179,21 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
+static void mlfqs_recalculate_priority_in_sleep_list(void){
+  struct thread* t_iter;
+  struct list_elem* iter;
+  for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)) {
+    t_iter =list_entry(iter,struct thread, elem);
+    mlfqs_recalculate_priority(t_iter);
+  }
+}
 
-static void recalculate_mlfqs_sleep_list_thread(void) {
+static void mlfqs_recalculate_recent_cpu_in_sleep_list(void){
   struct list_elem* iter;
   struct thread* t_iter;
-  for(iter=list_begin(&sleep_list);iter=list_end(&sleep_list);iter=list_next(iter)) {
-    t_iter=list_entry(iter,struct thread, elem);
-    recalculate_mlfqs_recent_cpu(t_iter);
-    recalculate_mlfqs_priority(t_iter);
+  for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)){ 
+    t_iter=list_entry(iter,struct thread,elem);
+    mlfqs_recalculate_recent_cpu(t_iter);
   }
 }
 
@@ -200,30 +208,38 @@ timer_interrupt (struct intr_frame *args UNUSED)
     for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list); ) {
       t_iter=list_entry(iter ,struct thread, elem);
       if(ticks>=t_iter->tick){
-
+        
         iter=list_remove(iter);
         thread_unblock(t_iter);
       }else{
         iter=list_next(iter);
       }
     }
-  thread_tick ();
+  
 
   if(thread_mlfqs) {
+
     
-    increase_recent_cpu(); // every timer interrupt
-    if(ticks%TIMER_FREQ==0) { // every second
-      recalculate_load_avg();
-      rearrange_mlfqs_priority_ready_list();
+    mlfqs_increase_recent_cpu();
+    
+    if(PER_SECOND(ticks)) { // every second
+      mlfqs_recalculate_load_avg();
+      mlfqs_recalculate_recent_cpu_in_sleep_list();
+      mlfqs_recalculate_recent_cpu_in_priority_ready_list();
+      mlfqs_recalculate_recent_cpu(thread_current());
     }
 
     if(ticks%4==0){ // every 4 ticks
-      // printf("in timer interrupt load avg %d\n",fp_to_int(load_avg*100));
-      recalculate_mlfqs_recent_cpu(thread_current());
-      recalculate_mlfqs_priority(thread_current());
+      mlfqs_recalculate_priority_in_sleep_list();
+      mlfqs_rearrange_priority_ready_list();
+      mlfqs_recalculate_priority(thread_current());
+      if(!is_cur_priority_max()) {
+          intr_yield_on_return();
+      }
     }
 
   }
+  thread_tick ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
