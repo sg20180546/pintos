@@ -219,7 +219,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if(thread_mlfqs) {
 
     t_iter=thread_current();
-    mlfqs_increase_recent_cpu();
+    t_iter->recent_cpu=add_mixed(t_iter->recent_cpu,1);
     
     if(PER_SECOND(ticks)) { // every second
       mlfqs_recalculate_load_avg();

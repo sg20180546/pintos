@@ -60,6 +60,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+bool thread_started;
 fp_t load_avg;
 
 static void kernel_thread (thread_func *, void *aux);
@@ -126,6 +127,7 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+  thread_started=true;
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -681,19 +683,18 @@ void mlfqs_recalculate_recent_cpu(struct thread* t){
     recent_cpu = 
         (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
   */
-  // EXPECT_LTE(0,load_avg);
+
   fp_t fountain=(2*load_avg*F)/add_mixed(2*load_avg,1);
 
-  // EXPECT_LTE(0,fountain);
+
 
   fp_t recent_cpu=((t->recent_cpu/F)*fountain);
-  // EXPECT_LTE(0,recent_cpu);
+
 
   recent_cpu=add_mixed(recent_cpu,t->nice);
 
   t->recent_cpu=max(recent_cpu,0);
 
-  // EXPECT_LTE(0,t->recent_cpu);
 }
 void mlfqs_recalculate_priority(struct thread* t) {
 
@@ -701,7 +702,7 @@ void mlfqs_recalculate_priority(struct thread* t) {
     priority = 
         PRI_MAX - (recent_cpu / 4) - (nice * 2)
   */
-  // t->priority=PRI_MAX-(recent_cpu_int/4) - (t->nice*2); // int
+
   fp_t priority_fp= int_to_fp(PRI_MAX) - (t->recent_cpu/4) - int_to_fp(t->nice)*2;
   
   t->priority=fp_to_int(priority_fp);

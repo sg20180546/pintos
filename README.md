@@ -32,6 +32,16 @@
 ## 4. File System
 
  -------------------------------------
+#### command
+0. set gcc older version
+`sudo update-alternatives --config gcc`
+1. threads
 `pintos run alarm-multiple`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make tests/threads/alarm-multiple.result.`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make check`
+2. userprog
+`pintos-mkdisk filesys.dsk --filesys-size=2`
+`pintos -f -q`
+`pintos -p ../../examples/echo -a echo -- -q`
+`pintos -q run 'echo x'`
+
