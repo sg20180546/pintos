@@ -5,6 +5,8 @@
         "thread": "c",
         "synch.h": "c",
         "vaddr.h": "c",
-        "timer.h": "c"
+        "timer.h": "c",
+        "thread.h": "c",
+        "stdio.h": "c"
     }
 }

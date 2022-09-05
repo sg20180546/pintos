@@ -77,7 +77,6 @@ int
 main (void)
 {
   char **argv;
-
   /* Clear BSS. */  
   bss_init ();
 
@@ -335,10 +334,12 @@ run_actions (char **argv)
           break;
 
       /* Check for required arguments. */
-      for (i = 1; i < a->argc; i++)
+      for (i = 1; i < a->argc; i++){
         if (argv[i] == NULL)
           PANIC ("action `%s' requires %d argument(s)", *argv, a->argc - 1);
-
+        // printf("%d : %s\n",i-1,argv[i-1]);
+      }
+      // printf("%d: %s\n",i+1,argv[i+1]);
       /* Invoke action and advance. */
       a->function (argv);
       argv += a->argc;
