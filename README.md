@@ -25,7 +25,13 @@
 - disable priority donation
 - little issue in mlfqs-load-avg
 
-## 2. User Program
+## 2. User Program (progressing)
+### 1) process_wait
+- process wait list in parent
+- process wait elem in child
+### 2) argument passing by stack
+
+### 3) system call handler
 
 ## 3. VM
 
@@ -44,4 +50,5 @@
 `pintos -f -q`
 `pintos -p ../../examples/echo -a echo -- -q`
 `pintos -q run 'echo x'`
+`pintos --filesys-size=2 –p ../../examples/echo –a echo -- -f –q run ‘echo x’`
 

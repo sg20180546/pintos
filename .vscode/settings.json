@@ -7,6 +7,7 @@
         "vaddr.h": "c",
         "timer.h": "c",
         "thread.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "palloc.h": "c"
     }
 }
