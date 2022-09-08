@@ -26,9 +26,10 @@
 // static struct list ready_list;
 static struct list priority_ready_list[PRI_MAX+1];
 
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
-static struct list all_list;
+extern struct list all_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -218,7 +219,7 @@ thread_create (const char *name, int priority,
     thread_yield();
   }
   
-  return tid;
+  return t;
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -255,6 +256,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+
+
   list_push_back(&priority_ready_list[t->priority],&t->elem);
 
   t->status = THREAD_READY;
@@ -312,8 +315,8 @@ thread_exit (void)
   struct thread* cur= thread_current();
   list_remove(&cur->elem);
   list_remove (&cur->allelem);
+  // list_remove(&cur->priority_donate_elem);
   thread_current ()->status = THREAD_DYING;
-
   thread_yield();
 
   NOT_REACHED ();
@@ -503,6 +506,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wait_on_lock=NULL;
   t->recent_cpu=0;
   t->recalculated=false;
+
+#ifdef USERPROG
+  t->exit_status=0;
+  list_init(&t->ps_wait_list);
+#endif
+  // t->exit_status=0;
+  // list_init(&t->ps_wait_list);
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -760,6 +770,17 @@ void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void) {
       mlfqs_recalculate_recent_cpu(t_iter);
     }
   }
+}
+struct thread* find_thread_by_tid(tid_t tid,struct list* list){
+  struct list_elem* iter;
+  struct thread* t_iter;
+  for(iter=list_begin(list);iter!=list_end(list);iter=list_next(iter)) {
+    t_iter = list_entry(iter,struct thread,allelem);
+    if(t_iter->tid==tid){
+      return t_iter;
+    }
+  }
+  return NULL;
 }
 
 

@@ -17,6 +17,11 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
+#include "lib/kernel/list.h"
+
+
+struct list all_list;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -24,12 +29,32 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static inline void parse_elf_name(const char* src,char* dst) {
   size_t i;
   size_t len=strlen(src);
-  for(i=0;i<len;i++){
+  for(i=0;i<len;++i){
     if(src[i]==' '){
       break;
     }
   }
-  strlcpy (dst, src, i-1);
+  strlcpy (dst, src, i+1);
+}
+
+static void construct_argument_stack(const char* cmdline,uint32_t* esp) 
+{
+  printf("cmdline : %s\n",cmdline);
+  printf("%d\n\n",cmdline[strlen(cmdline)]);
+  // cmdline++;
+  int i;
+  int j;
+  for(i=j=0;cmdline[i];i++){
+    if(cmdline[i]==' '){
+      *esp=&cmdline[j];
+      int debug;
+      for(debug=0;debug<i;debug++){
+        printf("%d:%c ",debug,cmdline[debug]);
+      }
+      printf("\n");
+      j=i+1;
+    }
+  }
 }
 
 /* Starts a new thread running a user program loaded from
@@ -39,8 +64,10 @@ static inline void parse_elf_name(const char* src,char* dst) {
 tid_t
 process_execute (const char *file_name) 
 {
+  printf("process executing\n\n");
   char *fn_copy;
-  tid_t tid;
+  // tid_t tid;
+  struct thread* created;
   char ELF_NAME[1024];
 
   /* Make a copy of FILE_NAME.
@@ -51,11 +78,11 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   parse_elf_name(file_name,ELF_NAME);
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
+  if (created->tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-
-  return tid;
+printf("process executing 2\n\n");
+  return created->tid;
 }
 
 /* A thread function that loads a user process and starts it
@@ -99,11 +126,27 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+// int 
+// process_wait_tid(tid_t tid){
+//   // struct thread* t=find_thread_by_tid(tid);
+//   // return process_wait(t);
+// }
+
 int
-process_wait (tid_t child_tid) 
-{
-  // while(1);
-  return child_tid;
+process_wait (tid_t tid) 
+{ 
+  struct thread* waiting=find_thread_by_tid(tid,&all_list);
+  ASSERT(waiting!=NULL);
+  if(waiting->tid==TID_ERROR){
+    return -1;
+  }
+  struct thread* cur= thread_current();
+  list_push_back(&waiting->ps_wait_list,&cur->ps_wait_elem);
+
+  enum intr_level level=intr_disable();
+  thread_block();
+  intr_set_level(level);
+  return waiting->exit_status;
 }
 
 /* Free the current process's resources. */
@@ -112,7 +155,14 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+  struct list_elem* iter;
+  struct thread* t_iter;
+  printf("process exiting\n\n");
+  for(iter=list_begin(&cur->ps_wait_list);iter!=list_end(&cur->ps_wait_list);iter=list_next(iter)){
+    // ASSERT(is_head(iter)||is_interior(iter));
+    t_iter=list_entry(iter,struct thread,ps_wait_elem);
+    thread_unblock(t_iter);
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -237,6 +287,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   parse_elf_name(file_name,ELF_NAME);
   /* Open executable file. */
+  printf("ELF_NAME : %s\n\n",ELF_NAME);
   file = filesys_open (ELF_NAME);
   
   if (file == NULL) 
@@ -319,7 +370,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
-
+  construct_argument_stack(file_name,*esp);
   /* Start address. */
   
   *eip = (void (*) (void)) ehdr.e_entry;

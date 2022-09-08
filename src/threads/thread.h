@@ -92,12 +92,13 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    
+    struct list_elem blocked_elem;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct list ps_wait_list;
     struct list_elem ps_wait_elem;
+    int exit_status;
 #endif
 
     /* Owned by thread.c. */
@@ -158,6 +159,7 @@ void mlfqs_rearrange_priority_ready_list(void);
 void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void);
 
 bool is_cur_priority_max(void);
+struct thread* find_thread_by_tid(tid_t tid,struct list* list);
 // void thread_yield_by_tick(void);
 
 #endif /* threads/thread.h */

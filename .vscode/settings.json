@@ -8,6 +8,7 @@
         "timer.h": "c",
         "thread.h": "c",
         "stdio.h": "c",
-        "palloc.h": "c"
+        "palloc.h": "c",
+        "list.h": "c"
     }
 }

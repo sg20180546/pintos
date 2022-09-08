@@ -39,13 +39,14 @@ static void (*syscall_handlers[])(uint32_t*) =
 void
 syscall_init (void) 
 {
+  printf("system call init\n\n");
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n");
+  printf ("system call!\n\n");
   // thread_exit ();
   void* esp=f->esp; // syscall number
   uint32_t syscall_nr=*((uint32_t*)esp);
@@ -60,8 +61,8 @@ static void syscall_halt(uint32_t* esp)
 
 static void syscall_exit(uint32_t* esp)
 {
-  int a=*esp;
-  a++;
+  thread_current()->exit_status=*(++esp);
+  thread_exit();
 }
 
 static void syscall_exec(uint32_t* esp)
