@@ -9,6 +9,8 @@
         "thread.h": "c",
         "stdio.h": "c",
         "palloc.h": "c",
-        "list.h": "c"
+        "list.h": "c",
+        "gdt.h": "c",
+        "string.h": "c"
     }
 }

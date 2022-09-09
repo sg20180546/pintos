@@ -99,6 +99,7 @@ struct thread
     struct list ps_wait_list;
     struct list_elem ps_wait_elem;
     int exit_status;
+    int waiting_exit_status;
 #endif
 
     /* Owned by thread.c. */

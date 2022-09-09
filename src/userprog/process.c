@@ -19,7 +19,12 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "lib/kernel/list.h"
+#define WORD_SIZE 4
 
+#define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
+                              **esp=(type)src;\
+                                }
+                      
 
 struct list all_list;
 
@@ -37,25 +42,98 @@ static inline void parse_elf_name(const char* src,char* dst) {
   strlcpy (dst, src, i+1);
 }
 
-static void construct_argument_stack(const char* cmdline,uint32_t* esp) 
+static void construct_argument_stack(const char* cmdline,char** esp) 
 {
-  printf("cmdline : %s\n",cmdline);
-  printf("%d\n\n",cmdline[strlen(cmdline)]);
-  // cmdline++;
-  int i;
-  int j;
-  for(i=j=0;cmdline[i];i++){
-    if(cmdline[i]==' '){
-      *esp=&cmdline[j];
-      int debug;
-      for(debug=0;debug<i;debug++){
-        printf("%d:%c ",debug,cmdline[debug]);
-      }
-      printf("\n");
-      j=i+1;
+
+  char* sp=*esp;
+
+  int i=0;
+  int j=0;
+  int start_pos;
+  int argc=0;
+  uint32_t* argv_address;
+  char** argv_temp;
+  size_t len=strlen(cmdline);
+
+  while(i<len) {
+    while(cmdline[i]==' ') {
+      i++;
+    }
+    if(i>=len){
+      break;
+    }
+
+    argc++;
+
+    while(cmdline[i]!=' ') {
+      i++;
     }
   }
+
+  if(argc==0) {
+    return;
+  }
+
+  argv_address=(char*)malloc(argc);
+  argv_temp=(char**)malloc(argc);
+  i=0;
+
+  while(i<len){
+    while(cmdline[i]==' '&&i<len) {
+      i++;
+    }
+    if(i>=len){
+      break;
+    }
+    
+    start_pos=i;
+    while(cmdline[i]!=' '&&cmdline[i]!=NULL){
+      i++;
+    }
+    size_t size=i-start_pos+1;
+    argv_temp[j]=malloc(size);
+    strlcpy(argv_temp[j],&cmdline[start_pos],size);
+    j++;
+  }
+
+  for(j=argc-1;j>=0;j--) {
+    size_t size=strlen(argv_temp[j])+1;
+    sp-=size;
+    strlcpy(sp,argv_temp[j],size);
+    argv_address[j]=sp;
+  }
+
+  size_t alignment=(uint32_t)sp%4;
+  sp-=alignment;
+  ASSERT((int)sp%4==0);
+
+  sp-=WORD_SIZE;
+  *sp=(uint32_t)0;
+
+  for(j=argc-1;j>=0;j--) {
+    sp-=WORD_SIZE;
+
+    *(uint32_t*)sp=(void*)argv_address[j];
+  }
+
+
+  sp-=WORD_SIZE;
+  *(uint32_t*)sp=sp+WORD_SIZE;
+
+  sp-=WORD_SIZE;
+  *sp=argc;
+
+  sp-=WORD_SIZE;
+  *sp=0;
+
+  *esp=sp;
+  for(i=0;i<argc;i++){
+    free(argv_temp[i]);
+  }
+  free(argv_address);
+  free(argv_temp);
 }
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -64,7 +142,7 @@ static void construct_argument_stack(const char* cmdline,uint32_t* esp)
 tid_t
 process_execute (const char *file_name) 
 {
-  printf("process executing\n\n");
+  // printf("process executing\n\n");
   char *fn_copy;
   // tid_t tid;
   struct thread* created;
@@ -81,7 +159,7 @@ process_execute (const char *file_name)
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
   if (created->tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-printf("process executing 2\n\n");
+// printf("process executing 2\n\n");
   return created->tid;
 }
 
@@ -113,6 +191,8 @@ start_process (void *file_name_)
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
+  // printf("start process!!\n\n");
+  
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
@@ -146,7 +226,7 @@ process_wait (tid_t tid)
   enum intr_level level=intr_disable();
   thread_block();
   intr_set_level(level);
-  return waiting->exit_status;
+  return cur->waiting_exit_status;
 }
 
 /* Free the current process's resources. */
@@ -157,14 +237,16 @@ process_exit (void)
   uint32_t *pd;
   struct list_elem* iter;
   struct thread* t_iter;
-  printf("process exiting\n\n");
+
   for(iter=list_begin(&cur->ps_wait_list);iter!=list_end(&cur->ps_wait_list);iter=list_next(iter)){
-    // ASSERT(is_head(iter)||is_interior(iter));
     t_iter=list_entry(iter,struct thread,ps_wait_elem);
+    ASSERT(t_iter);
+    t_iter->waiting_exit_status=cur->exit_status;
     thread_unblock(t_iter);
   }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+      // printf("process exiting 2\n\n");
   pd = cur->pagedir;
   if (pd != NULL) 
     {
@@ -179,6 +261,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  printf("%s: exit(%d)\n",cur->name,cur->exit_status);
+  thread_yield();
 }
 
 /* Sets up the CPU for running user code in the current
@@ -287,7 +371,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   parse_elf_name(file_name,ELF_NAME);
   /* Open executable file. */
-  printf("ELF_NAME : %s\n\n",ELF_NAME);
+  // printf("ELF_NAME : %s\n\n",ELF_NAME);
   file = filesys_open (ELF_NAME);
   
   if (file == NULL) 
@@ -370,7 +454,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
-  construct_argument_stack(file_name,*esp);
+
+  construct_argument_stack(file_name,esp);
   /* Start address. */
   
   *eip = (void (*) (void)) ehdr.e_entry;

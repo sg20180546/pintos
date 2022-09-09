@@ -34,19 +34,23 @@ static void syscall_tell(uint32_t* esp);
 static void syscall_close(uint32_t* esp);
 
 static void (*syscall_handlers[])(uint32_t*) = 
-            {syscall_halt,syscall_exit,syscall_exec,syscall_wait,syscall_create,syscall_remove,syscall_open,syscall_filesize,syscall_read,syscall_write,syscall_seek,syscall_tell,syscall_close};
+                                    {syscall_halt,syscall_exit,syscall_exec,
+                                    syscall_wait,syscall_create,syscall_remove,
+                                    syscall_open,syscall_filesize,syscall_read,
+                                    syscall_write,syscall_seek,syscall_tell,
+                                    syscall_close};
 
 void
 syscall_init (void) 
 {
-  printf("system call init\n\n");
+  // printf("system call init\n\n");
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n\n");
+  // printf ("system call!\n\n");
   // thread_exit ();
   void* esp=f->esp; // syscall number
   uint32_t syscall_nr=*((uint32_t*)esp);
