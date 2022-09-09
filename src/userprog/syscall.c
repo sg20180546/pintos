@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 typedef void syscall_handler_func (uint32_t);
 
 static void syscall_handler (struct intr_frame *);
@@ -39,6 +40,22 @@ static void (*syscall_handlers[])(uint32_t*) =
                                     syscall_open,syscall_filesize,syscall_read,
                                     syscall_write,syscall_seek,syscall_tell,
                                     syscall_close};
+static bool is_valid_vaddr(uint32_t* esp,int N){
+  int i;
+  printf("%p:%d\n\n",esp,*esp);
+  esp++;
+  for(i=1;i<=N;++i){
+    printf("%d:%p %d\n",i,esp,*esp);
+    if(*esp>=PHYS_BASE){
+      printf("Retrun false\n");
+      thread_current()->exit_status=-1;
+      return false;
+    }
+    esp++;
+  }
+  return true;
+}
+
 
 void
 syscall_init (void) 
@@ -48,12 +65,18 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
-  // printf ("system call!\n\n");
+  
+  
   // thread_exit ();
   void* esp=f->esp; // syscall number
+  // printf ("system call! %p %d\n\n",f->esp,*(uint32_t*)(f->esp));
+  //handling esp error;
+  
+
   uint32_t syscall_nr=*((uint32_t*)esp);
+  // printf("syscall nr : %d\n",syscall_nr);
   syscall_handlers[syscall_nr](esp);
 }
 
@@ -89,12 +112,21 @@ static void syscall_create(uint32_t* esp)
 
 static void syscall_remove(uint32_t* esp)
 {
+
+  if(!is_valid_vaddr(esp,2)) {
+    thread_exit();
+  }
   int a=*esp;
   a++;
 }
 
 static void syscall_open(uint32_t* esp)
-{
+{  
+  printf("syscall open\n");
+  if(!is_valid_vaddr(esp,2)) {
+
+    thread_exit();
+  }
   int a=*esp;
   a++;
 }
@@ -107,12 +139,20 @@ static void syscall_filesize(uint32_t* esp)
 
 static void syscall_read(uint32_t* esp)
 {
+  printf("syscall remove\n");
+  if(!is_valid_vaddr(esp,2)) {
+    thread_exit();
+  }
   int a=*esp;
   a++;
 }
 
 static void syscall_write(uint32_t* esp)
 {
+  printf("syscall write\n\n");
+  if(!is_valid_vaddr(esp,3)) {
+    thread_exit();
+  }
   int fd=*(++esp);
   char* buffer=*(++esp);
   int size=*(++esp);

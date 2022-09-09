@@ -42,9 +42,8 @@ static inline void parse_elf_name(const char* src,char* dst) {
   strlcpy (dst, src, i+1);
 }
 
-static void construct_argument_stack(const char* cmdline,char** esp) 
+static void construct_argument_stack(const char* cmdline,uint32_t** esp) 
 {
-
   char* sp=*esp;
 
   int i=0;
@@ -74,8 +73,8 @@ static void construct_argument_stack(const char* cmdline,char** esp)
     return;
   }
 
-  argv_address=(char*)malloc(argc);
-  argv_temp=(char**)malloc(argc);
+  argv_address=(uint32_t*)malloc(argc*sizeof(uint32_t));
+  argv_temp=(char**)malloc(argc*sizeof(char*));
   i=0;
 
   while(i<len){
@@ -91,16 +90,24 @@ static void construct_argument_stack(const char* cmdline,char** esp)
       i++;
     }
     size_t size=i-start_pos+1;
-    argv_temp[j]=malloc(size);
+    argv_temp[j]=malloc(size*sizeof(char));
     strlcpy(argv_temp[j],&cmdline[start_pos],size);
+
     j++;
   }
 
   for(j=argc-1;j>=0;j--) {
+ 
     size_t size=strlen(argv_temp[j])+1;
+
     sp-=size;
     strlcpy(sp,argv_temp[j],size);
+
+    // printf("%d %d %d %d\n",argv_temp[0][0],argv_temp[0][1],argv_temp[0][2],argv_temp[0][3]);
     argv_address[j]=sp;
+    // printf("%d %d %d %d\n",argv_temp[0][0],argv_temp[0][1],argv_temp[0][2],argv_temp[0][3]);
+    // printf("inner 3 %s %p %p\n\n",argv_temp[0],&argv_address[0],&argv_temp[0]);
+    // printf("%s %s\n\n",sp,argv_temp[j]);
   }
 
   size_t alignment=(uint32_t)sp%4;
@@ -121,15 +128,18 @@ static void construct_argument_stack(const char* cmdline,char** esp)
   *(uint32_t*)sp=sp+WORD_SIZE;
 
   sp-=WORD_SIZE;
-  *sp=argc;
+  *(uint32_t*)sp=argc;
 
   sp-=WORD_SIZE;
-  *sp=0;
-
+  *(uint32_t*)sp=0;
+  // printf("%p %p %p %p \n\n",**esp,*esp,esp,sp);
   *esp=sp;
+  // printf("1\n");
   for(i=0;i<argc;i++){
+    // printf("loop %d\n",i);
     free(argv_temp[i]);
   }
+  // printf("2\n");
   free(argv_address);
   free(argv_temp);
 }
@@ -151,6 +161,7 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
+
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);

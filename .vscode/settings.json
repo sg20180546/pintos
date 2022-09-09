@@ -11,6 +11,8 @@
         "palloc.h": "c",
         "list.h": "c",
         "gdt.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "syscall.h": "c",
+        "syscall-nr.h": "c"
     }
 }
