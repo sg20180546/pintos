@@ -29,7 +29,7 @@ static struct list priority_ready_list[PRI_MAX+1];
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
-extern struct list all_list;
+struct list all_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;

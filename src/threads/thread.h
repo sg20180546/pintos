@@ -120,7 +120,7 @@ struct thread
 extern bool thread_mlfqs;
 extern bool thread_started;
 extern fp_t load_avg;
-
+extern struct list all_list;
 void thread_init (void);
 void thread_start (void);
 
