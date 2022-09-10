@@ -27,12 +27,18 @@
 
 ## 2. User Program (progressing)
 ### 1) process_wait
-- process wait list in parent
-- process wait elem in child
+- process wait list in child, which is running
+- process wait elem in parent, which is waiting for the process exit
+- parent blocked and inserted to wait list of running ps
+- if running process exit, update exit status for waiting processes and unblock those.
 ### 2) argument passing by stack
-
+- use intr_frame
+- *esp == system call number
+- *(esp+i)== system call argument
 ### 3) system call handler
-
+- check vaddr
+- check argument stack
+- page fault handling
 ## 3. VM
 
 ## 4. File System
