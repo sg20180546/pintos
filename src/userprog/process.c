@@ -193,7 +193,6 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
-    printf("load failed\n\n");
     thread_exit ();
   }
   /* Start the user process by simulating a return from an
@@ -232,6 +231,7 @@ process_wait (tid_t tid)
     return -1;
   }
   struct thread* cur= thread_current();
+  
   list_push_back(&waiting->ps_wait_list,&cur->ps_wait_elem);
 
   enum intr_level level=intr_disable();
@@ -253,7 +253,9 @@ process_exit (void)
     t_iter=list_entry(iter,struct thread,ps_wait_elem);
     ASSERT(t_iter);
     t_iter->waiting_exit_status=cur->exit_status;
-    thread_unblock(t_iter);
+    if(t_iter->status==THREAD_BLOCKED){
+      thread_unblock(t_iter);
+    }
   }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -273,7 +275,6 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
-  thread_yield();
 }
 
 /* Sets up the CPU for running user code in the current

@@ -7,10 +7,16 @@
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 
+#include "lib/kernel/list.h"
 /* Partition that contains the file system. */
 struct block *fs_device;
 
 static void do_format (void);
+
+extern struct list free_fd_list;
+extern struct list open_file_list;
+extern int CUR_MAX_FD;
+
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -20,6 +26,11 @@ filesys_init (bool format)
   fs_device = block_get_role (BLOCK_FILESYS);
   if (fs_device == NULL)
     PANIC ("No file system device found, can't initialize file system.");
+  
+  list_init(&open_file_list);
+
+  list_init(&free_fd_list);
+  CUR_MAX_FD=3;
 
   inode_init ();
   free_map_init ();
@@ -45,6 +56,9 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+  if(strlen(name)==0){
+    return false;
+  }
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
   bool success = (dir != NULL
@@ -68,12 +82,16 @@ filesys_open (const char *name)
 {
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
-  // printf("filesys open1\n\n");
+
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);
 
-  return file_open (inode);
+  struct file* ret=file_open (inode);
+  if(ret) {
+    list_push_back(&open_file_list,&ret->elem);
+  }
+  return ret;
 }
 
 /* Deletes the file named NAME.

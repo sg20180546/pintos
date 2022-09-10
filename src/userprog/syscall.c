@@ -1,54 +1,70 @@
 #include "userprog/syscall.h"
+
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
 
 #define MAX_SYSCALL_NR 13
-typedef void syscall_handler_func (uint32_t*);
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+typedef void syscall_handler_func (struct intr_frame*);
+
+struct list open_file_list;
 
 struct syscall_handler_t {
   syscall_handler_func* func;
-  char name[128];
+  char name[128]; // for debuging
   char argc;
 };
 
+static struct file* find_file_by_fd(int fd) {
+  struct list_elem* iter;
+  struct file* f_iter;
+  for(iter=list_begin(&open_file_list);iter!=list_end(&open_file_list);iter=list_next(&iter)) {
+    f_iter=list_entry(iter,struct file,elem);
+    if(f_iter->fd==fd){
+      return f_iter;
+    }
+  }
+  return NULL;
+}
+static inline void exit(int status){
+  thread_current()->exit_status=status;
+  thread_exit();
+}
 
 static void syscall_handler (struct intr_frame *);
 
-static void syscall_halt(uint32_t* esp);
+static void syscall_halt(struct intr_frame* f);
 
-void syscall_exit(uint32_t* esp);
+static void syscall_exit(struct intr_frame* f);
 
-static void syscall_exec(uint32_t* esp);
+static void syscall_exec(struct intr_frame* f);
 
-static void syscall_wait(uint32_t* esp);
+static void syscall_wait(struct intr_frame* f);
 
-static void syscall_create(uint32_t* esp);
+static void syscall_create(struct intr_frame* f);
 
-static void syscall_remove(uint32_t* esp);
+static void syscall_remove(struct intr_frame* f);
 
-static void syscall_open(uint32_t* esp);
+static void syscall_open(struct intr_frame* f);
 
-static void syscall_filesize(uint32_t* esp);
+static void syscall_filesize(struct intr_frame* f);
 
-static void syscall_read(uint32_t* esp);
+static void syscall_read(struct intr_frame* f);
 
-static void syscall_write(uint32_t* esp);
+static void syscall_write(struct intr_frame* f);
 
-static void syscall_seek(uint32_t* esp);
+static void syscall_seek(struct intr_frame* f);
  
-static void syscall_tell(uint32_t* esp);
+static void syscall_tell(struct intr_frame* f);
 
-static void syscall_close(uint32_t* esp);
-
-// static void (*syscall_handlers[])(uint32_t*) = 
-//                                     {syscall_halt,syscall_exit,syscall_exec,
-//                                     syscall_wait,syscall_create,syscall_remove,
-//                                     syscall_open,syscall_filesize,syscall_read,
-//                                     syscall_write,syscall_seek,syscall_tell,
-//                                     syscall_close};
+static void syscall_close(struct intr_frame* f);
 
 struct syscall_handler_t syscall_handlers[]=
                       {{syscall_halt,"halt",0},{syscall_exit,"exit",1},{syscall_exec,"exec",1},
@@ -62,9 +78,12 @@ struct syscall_handler_t syscall_handlers[]=
 //   return vaddr < PHYS_BASE;
 // }
 
-static inline bool is_valid_vaddr(uint32_t* esp){
+static inline bool is_valid_vaddr(uint32_t * esp){
 
   int i;
+  if(*esp>MAX_SYSCALL_NR){
+    return false;
+  }
   for(i=0;i<=syscall_handlers[*esp].argc;++i){
     if(!is_user_vaddr(esp+i)){
       return false;
@@ -86,120 +105,163 @@ syscall_handler (struct intr_frame *f)
 {
   
   
-  // thread_exit ();
-  uint32_t* esp=f->esp; // syscall number
-  if(*esp>MAX_SYSCALL_NR ){
-    thread_exit();
-  }
-  if(!is_valid_vaddr(esp)){
+  uint32_t* esp=f->esp;
 
+  if(!is_valid_vaddr(esp)){
     thread_current()->exit_status=-1;
     thread_exit();
-  }
-  // printf ("system call! %p %d\n\n",f->esp,*(uint32_t*)(f->esp));
-  //handling esp error;
-  
+  }  
 
   uint32_t syscall_nr=*((uint32_t*)esp);
-  struct syscall_handler_t* handler=&syscall_handlers[*esp];
+  struct syscall_handler_t* handler=&syscall_handlers[syscall_nr];
   // printf("name : %s\n",handler->name);
-  syscall_handlers[syscall_nr].func(esp);
+  handler->func(f);
 }
 
-static void syscall_halt(uint32_t* esp)
+static void syscall_halt(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
+  uint32_t* esp= f->esp;
+  esp++;
 }
 
-void syscall_exit(uint32_t* esp)
+static void syscall_exit(struct intr_frame* f)
 {
+  uint32_t* esp= f->esp;
   thread_current()->exit_status=*(++esp);
   thread_exit();
 }
 
-static void syscall_exec(uint32_t* esp)
+static void syscall_exec(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
+  uint32_t* esp= f->esp;
+  esp++;
 }
 
-static void syscall_wait(uint32_t* esp)
+static void syscall_wait(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
+  uint32_t* esp= f->esp;
+  esp++;
 }
 
-static void syscall_create(uint32_t* esp)
-{
-  int a=*esp;
-  a++;
-}
-
-static void syscall_remove(uint32_t* esp)
+static void syscall_create(struct intr_frame* f)
 {
 
-  int a=*esp;
-  a++;
+  uint32_t* esp= f->esp;
+  const char* file=*(++esp);
+  unsigned initial_size=*(++esp);
+
+
+  f->eax=filesys_create(file,initial_size);
+  // EXPECT_EQ(ret,false);
+  // asm volatile
+  // (
+  //   "movl %1, %%eax\n\t"
+  //   "movl %%eax, %0\n\t"
+  //   :"=m"(check)
+  //   :"m"(ret)
+  //   :"eax"
+  // );
+  // EXPECT_EQ(ret,check);
 }
 
-static void syscall_open(uint32_t* esp)
+static void syscall_remove(struct intr_frame* f)
+{
+
+  uint32_t* esp= f->esp;
+  esp++;
+}
+
+static void syscall_open(struct intr_frame* f)
 {  
   // printf("syscall open\n");
+  uint32_t* esp= f->esp;
+  const char* file=*(++esp);
+  if(file==NULL){
+    return;
+  }
+  struct file* file_struct=filesys_open(file);
 
-  int a=*esp;
-  a++;
+
+  if(file_struct==NULL){
+    f->eax=-1;
+  }else{
+    f->eax=file_struct->fd;
+  }
 }
 
-static void syscall_filesize(uint32_t* esp)
+static void syscall_filesize(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
-}
+  uint32_t* esp= f->esp;
+  int fd=*(++esp);
+  struct file* file_struct=find_file_by_fd(fd);
+  int ret=0;
+  if(file_struct){
+    ret=file_length(file_struct);
+  }
+  f->eax=ret;
+} 
 
-static void syscall_read(uint32_t* esp)
+static void syscall_read(struct intr_frame* f)
 {
-  // printf("syscall remove\n");
+  uint32_t* esp= f->esp;
+  int fd=*(++esp);
+  void* buffer=*(++esp);
+  unsigned size=*(++esp);
+  
+  int ret=-1;
 
-  int a=*esp;
-  a++;
+  if(!is_user_vaddr(buffer)){
+    exit(-1);
+  }
+  if(fd==STDOUT_FILENO||fd==STDIN_FILENO){
+    exit(-1);
+  }
+
+  struct file* file_struct=find_file_by_fd(fd);
+  if(file_struct){
+    ret=file_read(file_struct,buffer,size);
+  }
+  f->eax=ret;
 }
 
-static void syscall_write(uint32_t* esp)
+static void syscall_write(struct intr_frame* f)
 {
   // printf("syscall write\n\n");
-
+  uint32_t* esp= f->esp;
   int fd=*(++esp);
   char* buffer=*(++esp);
   int size=*(++esp);
-  int check;
-  putbuf(buffer,size);
-
-  asm volatile
-  (
-    "movl %1, %%eax\n\t"
-    "movl %%eax, %0\n\t"
-    :"=m"(check)
-    :"m"(size)
-    :"eax"
-  );
-  ASSERT(check==size);
+  if(fd==STDOUT_FILENO){
+    putbuf(buffer,size);
+  }
+  // asm volatile
+  // (
+  //   "movl %1, %%eax\n\t"
+  //   "movl %%eax, %0\n\t"
+  //   :"=m"(check)
+  //   :"m"(size)
+  //   :"eax"
+  // );
+  // ASSERT(check==size);
+  f->eax=size;
 }
 
-static void syscall_seek(uint32_t* esp)
+static void syscall_seek(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
+  uint32_t* esp= f->esp;
+  esp++;
 }
  
-static void syscall_tell(uint32_t* esp)
+static void syscall_tell(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
+  uint32_t* esp= f->esp;
+  esp++;
 }
 
-static void syscall_close(uint32_t* esp)
+static void syscall_close(struct intr_frame* f)
 {
-  int a=*esp;
-  a++;
+  uint32_t* esp=f->esp;
+  int fd=*(++esp);
+  struct file* file_struct= find_file_by_fd(fd);
+  file_close(file_struct);
 }

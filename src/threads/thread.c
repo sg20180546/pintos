@@ -771,6 +771,7 @@ void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void) {
     }
   }
 }
+
 struct thread* find_thread_by_tid(tid_t tid,struct list* list){
   struct list_elem* iter;
   struct thread* t_iter;
