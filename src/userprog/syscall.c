@@ -7,6 +7,7 @@
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "userprog/process.h"
 
 #define MAX_SYSCALL_NR 13
 #define STDIN_FILENO 0
@@ -14,7 +15,7 @@
 #define STDERR_FILENO 2
 typedef void syscall_handler_func (struct intr_frame*);
 
-struct list open_file_list;
+// struct list open_file_list;
 
 struct syscall_handler_t {
   syscall_handler_func* func;
@@ -22,10 +23,11 @@ struct syscall_handler_t {
   char argc;
 };
 
-static struct file* find_file_by_fd(int fd) {
+static struct file* find_file_by_fd(int fd,struct thread* cur) {
   struct list_elem* iter;
   struct file* f_iter;
-  for(iter=list_begin(&open_file_list);iter!=list_end(&open_file_list);iter=list_next(&iter)) {
+  struct list* open_file_list=&cur->open_file_list;
+  for(iter=list_begin(open_file_list);iter!=list_end(open_file_list);iter=list_next(iter)) {
     f_iter=list_entry(iter,struct file,elem);
     if(f_iter->fd==fd){
       return f_iter;
@@ -72,11 +74,7 @@ struct syscall_handler_t syscall_handlers[]=
                         {syscall_open,"open",1},{syscall_filesize,"filesize",1},{syscall_read,"read",1},
                         {syscall_write,"write",3},{syscall_seek,"seek",2},{syscall_tell,"tell",1},
                         {syscall_close,"close",1}};
-// static inline bool
-// is_user_vaddrs (const void *vaddr) 
-// {
-//   return vaddr < PHYS_BASE;
-// }
+
 
 static inline bool is_valid_vaddr(uint32_t * esp){
 
@@ -132,15 +130,18 @@ static void syscall_exit(struct intr_frame* f)
 }
 
 static void syscall_exec(struct intr_frame* f)
-{
+{ 
+  
   uint32_t* esp= f->esp;
-  esp++;
+  const char* file=*(++esp);
+  f->eax=process_execute(file);
 }
 
 static void syscall_wait(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
-  esp++;
+  int fd=*(++esp);
+  f->eax=process_wait(fd);
 }
 
 static void syscall_create(struct intr_frame* f)
@@ -168,7 +169,8 @@ static void syscall_remove(struct intr_frame* f)
 {
 
   uint32_t* esp= f->esp;
-  esp++;
+  const char* file=*(++esp);
+  
 }
 
 static void syscall_open(struct intr_frame* f)
@@ -193,7 +195,7 @@ static void syscall_filesize(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
   int fd=*(++esp);
-  struct file* file_struct=find_file_by_fd(fd);
+  struct file* file_struct=find_file_by_fd(fd,thread_current());
   int ret=0;
   if(file_struct){
     ret=file_length(file_struct);
@@ -208,29 +210,35 @@ static void syscall_read(struct intr_frame* f)
   void* buffer=*(++esp);
   unsigned size=*(++esp);
   
-  int ret=-1;
 
-  if(!is_user_vaddr(buffer)){
-    exit(-1);
-  }
-  if(fd==STDOUT_FILENO||fd==STDIN_FILENO){
+  if(!is_user_vaddr(buffer) ){
     exit(-1);
   }
 
-  struct file* file_struct=find_file_by_fd(fd);
-  if(file_struct){
-    ret=file_read(file_struct,buffer,size);
+  if(fd==STDOUT_FILENO||fd==STDIN_FILENO||fd<0){
+    exit(-1);
   }
-  f->eax=ret;
+
+  struct file* file_struct=find_file_by_fd(fd,thread_current());
+
+  if(file_struct==NULL){
+    exit(-1);
+  }else{
+    f->eax=file_read(file_struct,buffer,size);
+  }
 }
 
 static void syscall_write(struct intr_frame* f)
 {
-  // printf("syscall write\n\n");
   uint32_t* esp= f->esp;
   int fd=*(++esp);
   char* buffer=*(++esp);
   int size=*(++esp);
+
+  if(!is_user_vaddr(buffer)||!is_user_vaddr(*buffer)||fd<0 ){
+    exit(-1);
+  }
+  
   if(fd==STDOUT_FILENO){
     putbuf(buffer,size);
   }
@@ -262,6 +270,6 @@ static void syscall_close(struct intr_frame* f)
 {
   uint32_t* esp=f->esp;
   int fd=*(++esp);
-  struct file* file_struct= find_file_by_fd(fd);
+  struct file* file_struct= find_file_by_fd(fd,thread_current());
   file_close(file_struct);
 }

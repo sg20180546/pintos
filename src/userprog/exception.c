@@ -164,11 +164,17 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+
   if(!user||is_kernel_vaddr(fault_addr))
   {
    thread_current()->exit_status=-1;
    thread_exit();
    return;                                                
+  }
+  if(user&&not_present){
+   thread_current()->exit_status=-1;
+   thread_exit();
+   return;     
   }
 
   /* To implement virtual memory, delete the rest of the function

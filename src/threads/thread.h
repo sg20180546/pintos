@@ -100,6 +100,8 @@ struct thread
     struct list_elem ps_wait_elem;
     int exit_status;
     int waiting_exit_status;
+    struct thread* exec_tid_check;
+    struct list open_file_list;
 #endif
 
     /* Owned by thread.c. */

@@ -8,13 +8,14 @@
 #include "filesys/directory.h"
 
 #include "lib/kernel/list.h"
+#include "threads/thread.h"
 /* Partition that contains the file system. */
 struct block *fs_device;
 
 static void do_format (void);
 
 extern struct list free_fd_list;
-extern struct list open_file_list;
+
 extern int CUR_MAX_FD;
 
 
@@ -27,7 +28,6 @@ filesys_init (bool format)
   if (fs_device == NULL)
     PANIC ("No file system device found, can't initialize file system.");
   
-  list_init(&open_file_list);
 
   list_init(&free_fd_list);
   CUR_MAX_FD=3;
@@ -88,8 +88,9 @@ filesys_open (const char *name)
   dir_close (dir);
 
   struct file* ret=file_open (inode);
+
   if(ret) {
-    list_push_back(&open_file_list,&ret->elem);
+    list_push_back(&thread_current()->open_file_list,&ret->elem);
   }
   return ret;
 }

@@ -168,9 +168,19 @@ process_execute (const char *file_name)
   parse_elf_name(file_name,ELF_NAME);
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
-  if (created->tid == TID_ERROR)
+  
+  created->exec_tid_check=thread_current();
+  enum intr_level level=intr_disable();
+  thread_block();
+
+  intr_set_level(level);
+
+  if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
-// printf("process executing 2\n\n");
+  }
+  if(created->exit_status==-1){
+    created->tid=TID_ERROR;
+  }
   return created->tid;
 }
 
@@ -226,8 +236,7 @@ int
 process_wait (tid_t tid) 
 { 
   struct thread* waiting=find_thread_by_tid(tid,&all_list);
-  ASSERT(waiting!=NULL);
-  if(waiting->tid==TID_ERROR){
+  if(!waiting||waiting->tid==TID_ERROR){
     return -1;
   }
   struct thread* cur= thread_current();
@@ -389,6 +398,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      t->exit_status=-1;
+
       goto done; 
     }
   /* Read and verify executable header. */
@@ -475,6 +486,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
+ while(!t->exec_tid_check);
+ thread_unblock(t->exec_tid_check);
+
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   return success;

@@ -41,6 +41,7 @@ file_open (struct inode *inode)
       file->pos = 0;
       file->deny_write = false;
       file->fd=allocate_fd();
+      // file_allow_write(file);
       return file;
     }
   else
@@ -75,6 +76,7 @@ file_close (struct file *file)
         elem->fd=file->fd;
         list_insert_ordered(&free_fd_list,&elem->elem,fd_cmp,NULL);
       }
+      // file_allow_write(file);
     }
 }
 

@@ -510,9 +510,9 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   t->exit_status=0;
   list_init(&t->ps_wait_list);
+  list_init(&t->open_file_list);
 #endif
-  // t->exit_status=0;
-  // list_init(&t->ps_wait_list);
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
