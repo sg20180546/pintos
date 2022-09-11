@@ -67,7 +67,6 @@ file_close (struct file *file)
 
   if (file != NULL)
     {
-      file_allow_write (file);
       inode_close (file->inode);
       free (file); 
       
@@ -76,7 +75,6 @@ file_close (struct file *file)
         elem->fd=file->fd;
         list_insert_ordered(&free_fd_list,&elem->elem,fd_cmp,NULL);
       }
-      // file_allow_write(file);
     }
 }
 

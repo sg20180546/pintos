@@ -102,6 +102,7 @@ struct thread
     int waiting_exit_status;
     struct thread* exec_tid_check;
     struct list open_file_list;
+    struct file* running_file;
 #endif
 
     /* Owned by thread.c. */
