@@ -1,5 +1,5 @@
 #include "filesys/file.h"
-
+#include "threads/thread.h"
 
 // struct file;
 
@@ -7,8 +7,8 @@
    and returns the new file.  Returns a null pointer if an
    allocation fails or if INODE is null. */
 
-struct list free_fd_list;
-int CUR_MAX_FD;
+// struct list free_fd_list;
+// int CUR_MAX_FD;
 
 static bool fd_cmp(struct list_elem* a, struct list_elem* b,void* aux UNUSED){
   struct free_fd_elem* fa=list_entry(a,struct free_fd_elem, elem);
@@ -19,14 +19,15 @@ static bool fd_cmp(struct list_elem* a, struct list_elem* b,void* aux UNUSED){
   return false;
 }
 
-static int allocate_fd(){
+static int allocate_fd(struct thread* t){
   int ret;
-  if(!list_empty(&free_fd_list)) {
-    struct free_fd_elem* elem=list_entry(list_pop_front(&free_fd_list),struct free_fd_elem,elem);
+  struct list* free_fd_list=&t->free_fd_list;
+  if(!list_empty(free_fd_list)) {
+    struct free_fd_elem* elem=list_entry(list_pop_front(free_fd_list),struct free_fd_elem,elem);
     ret=elem->fd;
     free(elem);
   }else{
-    ret=CUR_MAX_FD++;
+    ret=t->cur_max_fd++;
   }
   return ret;
 }
@@ -40,8 +41,7 @@ file_open (struct inode *inode)
       file->inode = inode;
       file->pos = 0;
       file->deny_write = false;
-      file->fd=allocate_fd();
-      // file_allow_write(file);
+      file->fd=allocate_fd(thread_current());
       return file;
     }
   else
@@ -64,7 +64,7 @@ file_reopen (struct file *file)
 void
 file_close (struct file *file) 
 {
-
+  
   if (file != NULL)
     {
       inode_close (file->inode);
@@ -73,7 +73,7 @@ file_close (struct file *file)
       if(file->fd>=0){
         struct free_fd_elem* elem=malloc(sizeof(struct free_fd_elem));
         elem->fd=file->fd;
-        list_insert_ordered(&free_fd_list,&elem->elem,fd_cmp,NULL);
+        list_insert_ordered(&thread_current()->free_fd_list,&elem->elem,fd_cmp,NULL);
       }
     }
 }

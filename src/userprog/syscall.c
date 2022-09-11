@@ -247,7 +247,7 @@ static void syscall_write(struct intr_frame* f)
       ret=-1;
     }else{
       if(file->deny_write){
-        return 0;
+        ret=0;
       }else{
         ret=file_write(file,buffer,size);
       }

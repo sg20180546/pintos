@@ -511,6 +511,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->exit_status=0;
   list_init(&t->ps_wait_list);
   list_init(&t->open_file_list);
+  list_init(&t->free_fd_list);
+  t->cur_max_fd=3;
 #endif
 
   old_level = intr_disable ();

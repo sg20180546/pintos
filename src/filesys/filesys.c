@@ -28,10 +28,6 @@ filesys_init (bool format)
   if (fs_device == NULL)
     PANIC ("No file system device found, can't initialize file system.");
   
-
-  list_init(&free_fd_list);
-  CUR_MAX_FD=3;
-
   inode_init ();
   free_map_init ();
 

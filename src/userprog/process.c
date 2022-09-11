@@ -172,7 +172,6 @@ process_execute (const char *file_name)
   created->exec_tid_check=thread_current();
   enum intr_level level=intr_disable();
   thread_block();
-
   intr_set_level(level);
 
   if (created->tid == TID_ERROR){
@@ -401,6 +400,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       t->exit_status=-1;
 
       goto done; 
+    }else{
+      
     }
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
