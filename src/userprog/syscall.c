@@ -241,18 +241,18 @@ static void syscall_write(struct intr_frame* f)
   
   if(fd==STDOUT_FILENO){
     putbuf(buffer,size);
-  }
-  struct file* file =find_file_by_fd(fd,thread_current());
-  if(file==NULL){
-    ret=-1;
   }else{
-    if(file->deny_write){
-      return 0;
+    struct file* file =find_file_by_fd(fd,thread_current());
+    if(file==NULL){
+      ret=-1;
     }else{
-      ret=file_write(file,buffer,size);
+      if(file->deny_write){
+        return 0;
+      }else{
+        ret=file_write(file,buffer,size);
+      }
     }
   }
-
   // asm volatile
   // (
   //   "movl %1, %%eax\n\t"
