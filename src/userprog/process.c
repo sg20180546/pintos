@@ -19,6 +19,8 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "lib/kernel/list.h"
+#include "userprog/syscall.h"
+
 #define WORD_SIZE 4
 
 #define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
@@ -40,6 +42,7 @@ static inline void parse_elf_name(const char* src,char* dst) {
     }
   }
   strlcpy (dst, src, i+1);
+
 }
 
 static void construct_argument_stack(const char* cmdline,uint32_t** esp) 
@@ -166,9 +169,10 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   parse_elf_name(file_name,ELF_NAME);
+
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
-  
+
   created->exec_tid_check=thread_current();
   enum intr_level level=intr_disable();
   thread_block();
@@ -191,7 +195,8 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  // lock_init(&thread_current()->ps_wait_lock);
+  // lock_acquire(&thread_current()->ps_wait_lock);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -233,18 +238,26 @@ start_process (void *file_name_)
 
 int
 process_wait (tid_t tid) 
-{ 
+{   
+  // printf("process_Wait tid :%d\n",tid);
+  enum intr_level level=intr_disable();
+  // printf("process_Wait tid :%d\n",tid);
   struct thread* waiting=find_thread_by_tid(tid,&all_list);
+
+  
   if(!waiting||waiting->tid==TID_ERROR){
+
     return -1;
   }
+  // lock_acquire(waiting->ps_wait_lock);
   struct thread* cur= thread_current();
   
   list_push_back(&waiting->ps_wait_list,&cur->ps_wait_elem);
 
-  enum intr_level level=intr_disable();
+
   thread_block();
   intr_set_level(level);
+  // lock_release(waiting->ps_wait_lock);
   return cur->waiting_exit_status;
 }
 
@@ -256,7 +269,7 @@ process_exit (void)
   uint32_t *pd;
   struct list_elem* iter;
   struct thread* t_iter;
-
+  // struct list* ps_wait_list=&cur->ps_wait_lock->semaphore->waiters;
   for(iter=list_begin(&cur->ps_wait_list);iter!=list_end(&cur->ps_wait_list);iter=list_next(iter)){
     t_iter=list_entry(iter,struct thread,ps_wait_elem);
     ASSERT(t_iter);
@@ -265,6 +278,12 @@ process_exit (void)
       thread_unblock(t_iter);
     }
   }
+  // for(iter=list_begin(ps_wait_list);iter!=list_end(ps_wait_list);iter=list_next(iter)){
+  //   t_iter=list_entry(iter,struct thread,elem);
+  //   ASSERT(t_iter);
+  //   t_iter->waiting_exit_status=cur->exit_status;
+  // }
+  // lock_release(&cur->ps_wait_lock);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
       // printf("process exiting 2\n\n");
@@ -283,6 +302,11 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
+  // if(cur->running_file){
+
+    // file_allow_write(cur->running_file);
+    // file_close(cur->running_file);
+  // }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -391,17 +415,22 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   parse_elf_name(file_name,ELF_NAME);
   /* Open executable file. */
-  // printf("ELF_NAME : %s\n\n",ELF_NAME);
+
+
   file = filesys_open (ELF_NAME);
-  
+  // if(is_open_file_executing(ELF_NAME)&&file==NULL){
+  //   t->exit_status=12;
+  //   goto done;
+  // }
+
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", ELF_NAME);
       t->exit_status=-1;
 
       goto done; 
     }else{
-      
+      // t->running_file=file;
     }
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -491,6 +520,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
  thread_unblock(t->exec_tid_check);
 
   /* We arrive here whether the load is successful or not. */
+
+  
+  // if(file) {
+  //   file_deny_write(file);
+  // }
   file_close (file);
   return success;
 }

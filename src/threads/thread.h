@@ -98,12 +98,12 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct list ps_wait_list;
     struct list_elem ps_wait_elem;
+
     int exit_status;
     int waiting_exit_status;
     struct thread* exec_tid_check;
     
     struct list open_file_list;
-    struct file* running_file;
     struct list free_fd_list;
     int cur_max_fd;
 #endif

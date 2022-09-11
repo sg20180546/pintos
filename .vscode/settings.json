@@ -16,6 +16,8 @@
         "syscall-nr.h": "c",
         "interrupt.h": "c",
         "inode.h": "c",
-        "debug.h": "c"
+        "debug.h": "c",
+        "stdbool.h": "c",
+        "shutdown.h": "c"
     }
 }

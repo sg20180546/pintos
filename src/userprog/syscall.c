@@ -8,6 +8,8 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "userprog/process.h"
+#include "lib/string.h"
+#include "devices/shutdown.h"
 
 #define MAX_SYSCALL_NR 13
 #define STDIN_FILENO 0
@@ -34,6 +36,21 @@ static struct file* find_file_by_fd(int fd,struct thread* cur) {
     }
   }
   return NULL;
+}
+bool is_open_file_executing(const char* file){
+
+  struct list_elem* iter;
+  struct thread* t_iter;
+
+  for(iter=list_begin(&all_list);iter!=list_end(&all_list);iter=list_next(iter)) {
+    t_iter=list_entry(iter,struct thread,allelem);
+
+    if(!strcmp(file,t_iter->name)){
+
+      return true;
+    }
+  }
+  return false;
 }
 static inline void exit(int status){
   thread_current()->exit_status=status;
@@ -118,8 +135,7 @@ syscall_handler (struct intr_frame *f)
 
 static void syscall_halt(struct intr_frame* f)
 {
-  uint32_t* esp= f->esp;
-  esp++;
+  shutdown_power_off();
 }
 
 static void syscall_exit(struct intr_frame* f)
@@ -134,6 +150,7 @@ static void syscall_exec(struct intr_frame* f)
   
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
+
   f->eax=process_execute(file);
 }
 
@@ -175,14 +192,15 @@ static void syscall_remove(struct intr_frame* f)
 
 static void syscall_open(struct intr_frame* f)
 {  
-  // printf("syscall open\n");
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
   if(file==NULL){
     return;
   }
   struct file* file_struct=filesys_open(file);
-
+  if(is_open_file_executing(file)){
+    file_deny_write(file_struct);
+  }
 
   if(file_struct==NULL){
     f->eax=-1;
@@ -236,7 +254,7 @@ static void syscall_write(struct intr_frame* f)
   int size=*(++esp);
   int ret;
   if(!is_user_vaddr(buffer)||!is_user_vaddr(*buffer)||fd<0 ){
-    exit(-1);
+    ret=-1;
   }
   
   if(fd==STDOUT_FILENO){
@@ -251,6 +269,7 @@ static void syscall_write(struct intr_frame* f)
       }else{
         ret=file_write(file,buffer,size);
       }
+      // ret=file_write(file,buffer,size);
     }
   }
   // asm volatile
@@ -268,7 +287,10 @@ static void syscall_write(struct intr_frame* f)
 static void syscall_seek(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
-  esp++;
+  int fd=*(++esp);
+  off_t pos=*(++esp);
+  struct file* file=find_file_by_fd(fd,thread_current());
+  file->pos=pos;
 }
  
 static void syscall_tell(struct intr_frame* f)
@@ -282,5 +304,9 @@ static void syscall_close(struct intr_frame* f)
   uint32_t* esp=f->esp;
   int fd=*(++esp);
   struct file* file_struct= find_file_by_fd(fd,thread_current());
-  file_close(file_struct);
+  
+  if(file_struct){
+    file_allow_write(file_struct);
+    file_close(file_struct);
+  }
 }

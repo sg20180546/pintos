@@ -68,13 +68,14 @@ file_close (struct file *file)
   if (file != NULL)
     {
       inode_close (file->inode);
-      free (file); 
-      
+
       if(file->fd>=0){
         struct free_fd_elem* elem=malloc(sizeof(struct free_fd_elem));
         elem->fd=file->fd;
         list_insert_ordered(&thread_current()->free_fd_list,&elem->elem,fd_cmp,NULL);
       }
+      free (file); 
+
     }
 }
 
