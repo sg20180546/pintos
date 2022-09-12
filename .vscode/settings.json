@@ -18,6 +18,7 @@
         "inode.h": "c",
         "debug.h": "c",
         "stdbool.h": "c",
-        "shutdown.h": "c"
+        "shutdown.h": "c",
+        "filesys.h": "c"
     }
 }

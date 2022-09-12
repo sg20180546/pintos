@@ -152,6 +152,12 @@ static void construct_argument_stack(const char* cmdline,uint32_t** esp)
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+static inline bool is_elf_file_exist(const char* name){
+  if(is_open_file_executing(name)){
+    return true;
+  }
+  return lookup(dir_open_root(),name,NULL,NULL);
+}
 tid_t
 process_execute (const char *file_name) 
 {
@@ -169,7 +175,9 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   parse_elf_name(file_name,ELF_NAME);
-
+  if(!is_elf_file_exist(ELF_NAME)){
+    return TID_ERROR;
+  }
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
 
