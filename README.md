@@ -25,13 +25,36 @@
 - disable priority donation
 - little issue in mlfqs-load-avg
 
-## 2. User Program
-
+## 2. User Program (progressing)
+### 1) process_wait
+- process wait list in child, which is running
+- process wait elem in parent, which is waiting for the process exit
+- parent blocked and inserted to wait list of running ps
+- if running process exit, update exit status for waiting processes and unblock those.
+### 2) argument passing by stack
+- use intr_frame
+- *esp == system call number
+- *(esp+i)== system call argument
+### 3) system call handler
+- check vaddr
+- check argument stack
+- page fault handling
 ## 3. VM
 
 ## 4. File System
 
  -------------------------------------
+#### command
+0. set gcc older version
+`sudo update-alternatives --config gcc`
+1. threads
 `pintos run alarm-multiple`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make tests/threads/alarm-multiple.result.`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make check`
+2. userprog
+`pintos-mkdisk filesys.dsk --filesys-size=2`
+`pintos -f -q`
+`pintos -p ../../examples/echo -a echo -- -q`
+`pintos -q run 'echo x'`
+`pintos --filesys-size=2 –p ../../examples/echo –a echo -- -f –q run ‘echo x’`
+

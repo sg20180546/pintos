@@ -92,10 +92,20 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    
+    struct list_elem blocked_elem;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct list ps_wait_list;
+    struct list_elem ps_wait_elem;
+
+    int exit_status;
+    int waiting_exit_status;
+    struct thread* exec_tid_check;
+    
+    struct list open_file_list;
+    struct list free_fd_list;
+    int cur_max_fd;
 #endif
 
     /* Owned by thread.c. */
@@ -114,8 +124,9 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+extern bool thread_started;
 extern fp_t load_avg;
-
+extern struct list all_list;
 void thread_init (void);
 void thread_start (void);
 
@@ -155,6 +166,7 @@ void mlfqs_rearrange_priority_ready_list(void);
 void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void);
 
 bool is_cur_priority_max(void);
+struct thread* find_thread_by_tid(tid_t tid,struct list* list);
 // void thread_yield_by_tick(void);
 
 #endif /* threads/thread.h */

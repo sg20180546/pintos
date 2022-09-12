@@ -137,8 +137,9 @@ sema_up (struct semaphore *sema)
   sema->value++;
 
   intr_set_level (old_level);
-  
-  thread_yield();
+  if(waiter&&thread_started&&!intr_context()){
+    thread_yield();
+  }
 }
 
 static void sema_test_helper (void *sema_);
@@ -229,9 +230,10 @@ lock_acquire (struct lock *lock)
       }
     }
     
-    cur->wait_on_lock=NULL;
+
   }
   sema_down (&lock->semaphore);
+  cur->wait_on_lock=NULL;
   lock->holder = cur;
 }
 
@@ -267,36 +269,36 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   lock->holder = NULL;
-    if(!thread_mlfqs){
-      struct thread* cur=thread_current();
-      struct thread* t_iter;
-      struct list_elem* iter;
-      int max_pri=PRI_MIN;
+  if(!thread_mlfqs){
+    struct thread* cur=thread_current();
+    struct thread* t_iter;
+    struct list_elem* iter;
+    int max_pri=PRI_MIN;
       
-      for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);) {
+    for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);) {
+      t_iter=list_entry(iter,struct thread,priority_donate_elem);
+      if(t_iter->wait_on_lock==lock){
+        iter=list_remove(iter);
+      }else{
+        iter=list_next(iter);
+      }
+    }
+    cur->priority=cur->initial_priority;
+    struct thread* high;
+    if(!list_empty(&cur->priority_donations)) {
+      for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);iter=list_next(iter)){
         t_iter=list_entry(iter,struct thread,priority_donate_elem);
-        if(t_iter->wait_on_lock==lock){
-          iter=list_remove(iter);
-        }else{
-          iter=list_next(iter);
+        if(t_iter->priority > max_pri){
+          max_pri=t_iter->priority;
+          high=t_iter;
         }
       }
-      cur->priority=cur->initial_priority;
-      struct thread* high;
-      if(!list_empty(&cur->priority_donations)) {
-        for(iter=list_begin(&cur->priority_donations);iter!=list_end(&cur->priority_donations);iter=list_next(iter)){
-          t_iter=list_entry(iter,struct thread,priority_donate_elem);
-          if(t_iter->priority > max_pri){
-            max_pri=t_iter->priority;
-            high=t_iter;
-          }
-        }
 
-        ASSERT(high!=NULL);
-        if(high->priority> cur->priority) {
-          cur->priority=high->priority;
-        }
-      }
+    ASSERT(high!=NULL);
+    if(high->priority> cur->priority) {
+      cur->priority=high->priority;
+    }
+    }
   }
   sema_up (&lock->semaphore);
 }

@@ -1,19 +1,37 @@
 #include "filesys/file.h"
-#include <debug.h>
-#include "filesys/inode.h"
-#include "threads/malloc.h"
+#include "threads/thread.h"
 
-/* An open file. */
-struct file 
-  {
-    struct inode *inode;        /* File's inode. */
-    off_t pos;                  /* Current position. */
-    bool deny_write;            /* Has file_deny_write() been called? */
-  };
+// struct file;
 
 /* Opens a file for the given INODE, of which it takes ownership,
    and returns the new file.  Returns a null pointer if an
    allocation fails or if INODE is null. */
+
+// struct list free_fd_list;
+// int CUR_MAX_FD;
+
+static bool fd_cmp(struct list_elem* a, struct list_elem* b,void* aux UNUSED){
+  struct free_fd_elem* fa=list_entry(a,struct free_fd_elem, elem);
+  struct free_fd_elem* fb=list_entry(b,struct free_fd_elem, elem);
+  if(fa->fd<fb->fd){
+    return true;
+  }
+  return false;
+}
+
+static int allocate_fd(struct thread* t){
+  int ret;
+  struct list* free_fd_list=&t->free_fd_list;
+  if(!list_empty(free_fd_list)) {
+    struct free_fd_elem* elem=list_entry(list_pop_front(free_fd_list),struct free_fd_elem,elem);
+    ret=elem->fd;
+    free(elem);
+  }else{
+    ret=t->cur_max_fd++;
+  }
+  return ret;
+}
+
 struct file *
 file_open (struct inode *inode) 
 {
@@ -23,6 +41,7 @@ file_open (struct inode *inode)
       file->inode = inode;
       file->pos = 0;
       file->deny_write = false;
+      file->fd=allocate_fd(thread_current());
       return file;
     }
   else
@@ -45,11 +64,18 @@ file_reopen (struct file *file)
 void
 file_close (struct file *file) 
 {
+  
   if (file != NULL)
     {
-      file_allow_write (file);
       inode_close (file->inode);
+
+      if(file->fd>=0){
+        struct free_fd_elem* elem=malloc(sizeof(struct free_fd_elem));
+        elem->fd=file->fd;
+        list_insert_ordered(&thread_current()->free_fd_list,&elem->elem,fd_cmp,NULL);
+      }
       free (file); 
+
     }
 }
 

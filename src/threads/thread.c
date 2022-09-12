@@ -26,9 +26,10 @@
 // static struct list ready_list;
 static struct list priority_ready_list[PRI_MAX+1];
 
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
-static struct list all_list;
+struct list all_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -60,6 +61,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+bool thread_started;
 fp_t load_avg;
 
 static void kernel_thread (thread_func *, void *aux);
@@ -126,6 +128,7 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
+  thread_started=true;
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -216,7 +219,7 @@ thread_create (const char *name, int priority,
     thread_yield();
   }
   
-  return tid;
+  return t;
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -253,6 +256,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+
+
   list_push_back(&priority_ready_list[t->priority],&t->elem);
 
   t->status = THREAD_READY;
@@ -298,7 +303,7 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
-
+  intr_disable ();
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -306,12 +311,12 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-  intr_disable ();
+
   struct thread* cur= thread_current();
   list_remove(&cur->elem);
   list_remove (&cur->allelem);
+  // list_remove(&cur->priority_donate_elem);
   thread_current ()->status = THREAD_DYING;
-
   thread_yield();
 
   NOT_REACHED ();
@@ -342,19 +347,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 { 
+
   if(!thread_mlfqs){
-    struct thread* t=thread_current();
-    t->initial_priority=new_priority;
+  struct thread* t=thread_current();
+  t->initial_priority=new_priority;    
     if(!list_empty(&t->priority_donations)) {
-      
       thread_yield();
     }else{
       t->priority = new_priority;
-      // for(i=PRI_MAX;i>new_priority;i--){
-      //   if(!list_empty(&priority_ready_list[i])) {
-      //     thread_yield();
-      //   }
-      // }
       if(!is_cur_priority_max()){
         thread_yield();
       }
@@ -506,6 +506,15 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wait_on_lock=NULL;
   t->recent_cpu=0;
   t->recalculated=false;
+
+#ifdef USERPROG
+  t->exit_status=0;
+  list_init(&t->ps_wait_list);
+  list_init(&t->open_file_list);
+  list_init(&t->free_fd_list);
+  t->cur_max_fd=3;
+#endif
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -672,16 +681,13 @@ size_t ready_thread_size(){
 }
 void mlfqs_recalculate_load_avg(void){
   size_t ready_threads=ready_thread_size();
-  // EXPECT_EQ(ready_threads,0);
   fp_t ready_threads_fp;
-  ASSERT(load_avg>=0);
   
   ready_threads_fp=int_to_fp(ready_threads);
 
   // load_avg = (59/60)*load_avg + (1/60)*ready_threads
   load_avg = ((59*load_avg)+ready_threads_fp)/60;
   
-  // ASSERT(load_avg>=0);
 }
 
 void mlfqs_recalculate_recent_cpu(struct thread* t){
@@ -689,19 +695,18 @@ void mlfqs_recalculate_recent_cpu(struct thread* t){
     recent_cpu = 
         (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
   */
-  EXPECT_LTE(0,load_avg);
+
   fp_t fountain=(2*load_avg*F)/add_mixed(2*load_avg,1);
 
-  // EXPECT_LTE(0,fountain);
+
 
   fp_t recent_cpu=((t->recent_cpu/F)*fountain);
-  // EXPECT_LTE(0,recent_cpu);
+
 
   recent_cpu=add_mixed(recent_cpu,t->nice);
 
   t->recent_cpu=max(recent_cpu,0);
 
-  // EXPECT_LTE(0,t->recent_cpu);
 }
 void mlfqs_recalculate_priority(struct thread* t) {
 
@@ -709,7 +714,7 @@ void mlfqs_recalculate_priority(struct thread* t) {
     priority = 
         PRI_MAX - (recent_cpu / 4) - (nice * 2)
   */
-  // t->priority=PRI_MAX-(recent_cpu_int/4) - (t->nice*2); // int
+
   fp_t priority_fp= int_to_fp(PRI_MAX) - (t->recent_cpu/4) - int_to_fp(t->nice)*2;
   
   t->priority=fp_to_int(priority_fp);
@@ -767,6 +772,18 @@ void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void) {
       mlfqs_recalculate_recent_cpu(t_iter);
     }
   }
+}
+
+struct thread* find_thread_by_tid(tid_t tid,struct list* list){
+  struct list_elem* iter;
+  struct thread* t_iter;
+  for(iter=list_begin(list);iter!=list_end(list);iter=list_next(iter)) {
+    t_iter = list_entry(iter,struct thread,allelem);
+    if(t_iter->tid==tid){
+      return t_iter;
+    }
+  }
+  return NULL;
 }
 
 

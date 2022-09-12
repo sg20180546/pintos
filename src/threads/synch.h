@@ -5,6 +5,8 @@
 #include <stdbool.h>
 
 bool thread_mlfqs;
+bool thread_started;
+uint32_t *init_page_dir;
 /* A counting semaphore. */
 struct semaphore 
   {
