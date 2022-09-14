@@ -147,7 +147,7 @@ static void syscall_exit(struct intr_frame* f)
 
 static void syscall_exec(struct intr_frame* f)
 { 
-  
+  // printf("exec\n");
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
 

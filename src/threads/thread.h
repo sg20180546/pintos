@@ -101,7 +101,6 @@ struct thread
 
     int exit_status;
     int waiting_exit_status;
-    struct thread* exec_tid_check;
     
     struct list open_file_list;
     struct list free_fd_list;

@@ -170,21 +170,19 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
-
+  
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  // printf("exec 1\n");
   parse_elf_name(file_name,ELF_NAME);
   if(!is_elf_file_exist(ELF_NAME)){
     return TID_ERROR;
   }
+  // printf("exec 2\n");
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
-
-  created->exec_tid_check=thread_current();
-  enum intr_level level=intr_disable();
-  thread_block();
-  intr_set_level(level);
+  // printf("exec 3\n");
 
   if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
@@ -524,8 +522,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
- while(!t->exec_tid_check);
- thread_unblock(t->exec_tid_check);
+
 
   /* We arrive here whether the load is successful or not. */
 
