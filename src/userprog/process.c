@@ -183,7 +183,9 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
   // printf("exec 3\n");
-
+  enum intr_level level=intr_disable();
+  thread_block();
+  intr_set_level(level);
   if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
   }
@@ -201,6 +203,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  // printf("start process\n");
   // lock_init(&thread_current()->ps_wait_lock);
   // lock_acquire(&thread_current()->ps_wait_lock);
   /* Initialize interrupt frame and load executable. */
@@ -209,7 +212,10 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
+  // ASSERT(thread_current()!=thread_current()->parent);
+  // printf("after load\n");
+  // ASSERT(success);
+  thread_unblock(thread_current()->parent);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
