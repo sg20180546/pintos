@@ -30,6 +30,8 @@ typedef unsigned long elem_type;
 struct bitmap
   {
     char name[32];
+    struct list_elem elem;
+
     size_t bit_cnt;     /* Number of bits. */
     elem_type *bits;    /* Elements that represent bits. */
   };
@@ -79,6 +81,13 @@ last_mask (const struct bitmap *b)
    and sets all of its bits to false.
    Returns true if success, false if memory allocation
    failed. */
+struct bitmap *
+bitmap_create_with_name(size_t bit_cnt,char* name){
+  struct bitmap* ret=bitmap_create(bit_cnt);
+  strcpy(name,ret->name);
+  return ret;
+}
+
 struct bitmap *
 bitmap_create (size_t bit_cnt) 
 {

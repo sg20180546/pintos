@@ -17,7 +17,6 @@ void debug_panic (const char *file, int line, const char *function,
 #endif
 
 
-
 /* This is outside the header guard so that debug.h may be
    included multiple times with different settings of NDEBUG. */
 #undef ASSERT

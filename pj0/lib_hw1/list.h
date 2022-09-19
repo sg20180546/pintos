@@ -89,6 +89,7 @@
 /* List element. */
 struct list_elem 
   {
+    int data;
     struct list_elem *prev;     /* Previous list element. */
     struct list_elem *next;     /* Next list element. */
   };
@@ -96,6 +97,7 @@ struct list_elem
 /* List. */
 struct list 
   {
+    char name[64];
     struct list_elem head;      /* List head. */
     struct list_elem tail;      /* List tail. */
   };
@@ -108,6 +110,8 @@ struct list
 #define list_entry(LIST_ELEM, STRUCT, MEMBER)           \
         ((STRUCT *) ((uint8_t *) &(LIST_ELEM)->next     \
                      - offsetof (STRUCT, MEMBER.next)))
+
+void list_init_with_name(struct list*,char*);
 
 void list_init (struct list *);
 
@@ -169,5 +173,9 @@ struct list_elem *list_min (struct list *, list_less_func *, void *aux);
 // Requirement
 void list_swap(struct list_elem*, struct list_elem*);
 void list_shuffle(struct list*);
+
+struct list* list_create_with_name(char*);
+
+void list_dump(struct list*);
 
 #endif /* lib/kernel/list.h */
