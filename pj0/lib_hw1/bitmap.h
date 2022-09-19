@@ -51,5 +51,4 @@ void bitmap_dump (const struct bitmap *);
 
 struct bitmap* bitmap_expand(struct bitmap*,int);
 
-struct bitmap* bitmap_create_with_name(size_t, char*);
 #endif /* lib/kernel/bitmap.h */

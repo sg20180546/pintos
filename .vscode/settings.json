@@ -20,6 +20,7 @@
         "stdbool.h": "c",
         "shutdown.h": "c",
         "filesys.h": "c",
-        "lib.h": "c"
+        "lib.h": "c",
+        "stdlib.h": "c"
     }
 }

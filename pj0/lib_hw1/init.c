@@ -1,84 +1,70 @@
-#include "list.h"
-#include "hash.h"
-#include "debug.h"
-#include "bitmap.h"
-#include "limits.h"
-#include "hex_dump.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include "init.h"
 
-struct struct_elem;
+static void create_wrapper(char** args,struct struct_elem* s_elem){
 
-struct util_wrapper{
-    char name[64];
-    inline void (*wrapper)(char**,struct struct_elem *);
-};
+}
 
-inline void bitmap_mark_wrapper(char**args,struct struct_elem* s_elem ){
+static void dumpdata(char** args,struct struct_elem* s_elem){
+
+}
+
+static void bitmap_mark_wrapper(char**args,struct struct_elem* s_elem ){
     int idx=atoi(args[2]);
-    bitmap_mark(idx,s_elem->p);
+    bitmap_mark((struct bitmap*) s_elem->p,idx);
+}
+static void bitmap_all_wrapper(char** args,struct struct_elem* s_elem){
+    size_t start=atoi(args[2]);
+    size_t cnt=atoi(args[3]);
+    bitmap_all(s_elem->p,start,cnt);
+}
+
+static void bitmap_contains_wrapper(char** args,struct struct_elem* s_elem){
+
+}
+
+static void bitmap_count_wrapper(char** args,struct struct_elem* s_elem){
+
+}
+
+static void bitmap_dump_wrapper(char** args,struct struct_elem* s_elem){
+
 }
 
 
 
 
-struct util_wrapper* wrapper_list[]={
+
+
+struct util_wrapper wrapper_list[]={
+                {"create",create_wrapper},{"dumpdata",dumpdata},
                 /* bitmap */
-                {"bitmap_mark",bitmap_mark_wrapper},"bitmap_all","bitmap_contains","bitmap_count",
-                "bitmap_dump","bitmap_expand","bitmap_mark","bitmap_set_all",
-                "bitmap_flip","bitmap_none","bitmap_scan_and_flip","bitmap_set_multiple",
-                "bitmap_set","bitmap_size","bitmap_test",
-                /* hash */
-                "hash_insert","hash_apply","hash_delete","hash_size",
-                "hash_clear","hash_empty","hash_find","hash_replace"
-                /* list */
-                "list_push_back","list_push_front",
-                "list_pop_back","list_pop_front",
-                "list_front","list_back","list_insert_ordered","list_insert",
-                "list_empty","list_size","list_max","list_min","list_remove",
-                "list_reverse","list_shuffle","list_sort","list_splice","list_swap",
-                "list_unique"
-                ,"delete","quit"};
-// enum cmd_n{
-//     CREATE,DUMPDATA,
-//                 /* bitmap */
-//                 BITMAP_MARK,BITMAP_ALL,BITMAP_CONTAINS,BITMAP_COUNT,
-//                 BITMAP_DUMP,BITMAP_EXPAND,BITMAP,"bitmap_set_all",
-//                 "bitmap_flip","bitmap_none","bitmap_scan_and_flip","bitmap_set_multiple",
-//                 "bitmap_set","bitmap_size","bitmap_test",
-//                 /* hash */
-//                 "hash_insert","hash_apply","hash_delete","hash_size",
-//                 "hash_clear","hash_empty","hash_find","hash_replace"
-//                 /* list */
-//                 "list_push_back","list_push_front",
-//                 "list_pop_back","list_pop_front",
-//                 "list_front","list_back","list_insert_ordered","list_insert",
-//                 "list_empty","list_size","list_max","list_min","list_remove",
-//                 "list_reverse","list_shuffle","list_sort","list_splice","list_swap",
-//                 "list_unique"
-//                 ,"delete","quit"
-// };
+                {"bitmap_mark",bitmap_mark_wrapper},{"bitmap_all",bitmap_all_wrapper},{"bitmap_contains",bitmap_contains_wrapper}
+                // "bitmap_count",
+                // "bitmap_dump","bitmap_expand","bitmap_mark","bitmap_set_all",
+                // "bitmap_flip","bitmap_none","bitmap_scan_and_flip","bitmap_set_multiple",
+                // "bitmap_set","bitmap_size","bitmap_test",
+                // /* hash */
+                // "hash_insert","hash_apply","hash_delete","hash_size",
+                // "hash_clear","hash_empty","hash_find","hash_replace"
+                // /* list */
+                // "list_push_back","list_push_front",
+                // "list_pop_back","list_pop_front",
+                // "list_front","list_back","list_insert_ordered","list_insert",
+                // "list_empty","list_size","list_max","list_min","list_remove",
+                // "list_reverse","list_shuffle","list_sort","list_splice","list_swap",
+                // "list_unique"
+                // ,"delete","quit"
+                };
 
 
 
-enum struct_type{HASH,LIST,BITMAP};
-struct struct_elem {
-    enum struct_type s_type;
-    char name[32];
-    void* p;
-    struct list_elem elem;
-};
+
 void free_struct_elem(struct struct_elem* s_elem){
     list_remove(&s_elem->elem);
     free(s_elem->p);
     free(s_elem);
 }
 
-
-
-
-struct list all_list;
 
 void find_from_all_list(char* name,struct struct_elem** s_elem){
     struct list_elem* iter;
@@ -93,12 +79,10 @@ void find_from_all_list(char* name,struct struct_elem** s_elem){
     *s_elem=s_iter;
 }
 
-char cmd[1024];
 
 
-int argc;
-int start;
-int pos;
+
+
 int main() {
     list_init(&all_list);
     while(1){
@@ -167,7 +151,6 @@ int main() {
 
             find_from_all_list(name,&s_elem);
 
-            ASSERT(s_elem!=list_end(&all_list));
             ASSERT(s_elem->p);
             switch (s_elem->s_type)
             {
@@ -193,7 +176,6 @@ int main() {
             struct struct_elem* s_elem;
             find_from_all_list(name,&s_elem);
 
-            ASSERT(s_elem!=list_end(&all_list));
             ASSERT(s_elem->p);
             free_struct_elem(s_elem);
             continue;;

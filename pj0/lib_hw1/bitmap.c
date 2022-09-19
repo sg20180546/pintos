@@ -7,7 +7,7 @@
 #ifdef FILESYS
 #include "filesys/file.h"
 #endif
-
+#include <string.h>
 #include "hex_dump.h"	// 'hex_dump' : defined in pintos/src/lib/stdio.c
 #define ASSERT(CONDITION) assert(CONDITION)	// patched for proj0-2
 
@@ -29,9 +29,6 @@ typedef unsigned long elem_type;
    simulates an array of bits. */
 struct bitmap
   {
-    char name[32];
-    struct list_elem elem;
-
     size_t bit_cnt;     /* Number of bits. */
     elem_type *bits;    /* Elements that represent bits. */
   };
@@ -81,12 +78,6 @@ last_mask (const struct bitmap *b)
    and sets all of its bits to false.
    Returns true if success, false if memory allocation
    failed. */
-struct bitmap *
-bitmap_create_with_name(size_t bit_cnt,char* name){
-  struct bitmap* ret=bitmap_create(bit_cnt);
-  strcpy(name,ret->name);
-  return ret;
-}
 
 struct bitmap *
 bitmap_create (size_t bit_cnt) 
@@ -257,6 +248,7 @@ bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value)
   for (i = 0; i < cnt; i++)
     if (bitmap_test (b, start + i) == value)
       value_cnt++;
+  printf("%ld\n",value_cnt);
   return value_cnt;
 }
 
@@ -272,8 +264,11 @@ bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value)
   ASSERT (start + cnt <= b->bit_cnt);
 
   for (i = 0; i < cnt; i++)
-    if (bitmap_test (b, start + i) == value)
-      return true;
+    if (bitmap_test (b, start + i) == value){
+        printf("true\n");
+        return true;
+      }
+  printf("false\n");
   return false;
 }
 

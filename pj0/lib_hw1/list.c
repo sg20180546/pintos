@@ -2,6 +2,9 @@
 #include <assert.h>	// Instead of	#include "../debug.h"
 #define ASSERT(CONDITION) assert(CONDITION)	// patched for proj0-2
 
+#include <stdio.h>
+#include <stdlib.h>	
+#include <string.h>
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
    last element.  The `prev' link of the front header is null, as
@@ -299,7 +302,7 @@ struct list_elem *
 list_back (struct list *list)
 {
   ASSERT (!list_empty (list));
-  printf("%d\n",list->tail.prev);
+  printf("%d\n",list->tail.prev->data);
   return list->tail.prev;
 }
 
