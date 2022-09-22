@@ -292,7 +292,6 @@ struct list_elem *
 list_front (struct list *list)
 {
   ASSERT (!list_empty (list));
-  printf("%d\n",list->head.next->data);
   return list->head.next;
 }
 
@@ -302,7 +301,6 @@ struct list_elem *
 list_back (struct list *list)
 {
   ASSERT (!list_empty (list));
-  printf("%d\n",list->tail.prev->data);
   return list->tail.prev;
 }
 
@@ -560,8 +558,21 @@ struct list* list_create_with_name(char* name){
 
 void list_dump(struct list* list){
   struct list_elem* iter;
+  if(list_empty(list)){
+    return;
+  }
   for(iter=list_begin(list);iter!=list_end(list);iter=list_next(iter)){
     printf("%d ",iter->data);
   }
   printf("\n");
+}
+
+struct list_elem* find_list_elem(struct list*  list,int data){
+  struct list_elem* iter;
+  for(iter=list_begin(list);iter!=list_end(list);iter=list_next(iter)){
+    if(data==iter->data){
+      return iter;
+    }
+  }
+  return NULL;
 }

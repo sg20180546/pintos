@@ -109,7 +109,7 @@ static void list_push_back_wrapper(char** args,struct struct_elem* s_elem){
     struct list_elem* new=malloc(sizeof *new);
     new->data=data;
     
-    list_push_back((struct list*) &s_elem->p,new);
+    list_push_back((struct list*) s_elem->p,new);
 }
 
 static void list_push_front_wrapper(char** args,struct struct_elem* s_elem){
@@ -117,7 +117,7 @@ static void list_push_front_wrapper(char** args,struct struct_elem* s_elem){
     struct list_elem* new=malloc(sizeof *new);
     new->data=data;
     
-    list_push_front((struct list*) &s_elem->p,new);
+    list_push_front((struct list*) s_elem->p,new);
 }
 
 static void bitmap_flip_wrapper(char** args, struct struct_elem* s_elem){
@@ -198,13 +198,13 @@ static void hash_insert_wrapper(char** args, struct struct_elem* s_elem){
 }
 
 static void list_pop_back_wrapper(char** args UNUSED,struct struct_elem* s_elem){
-    list_pop_back(s_elem->p);
-    free_struct_elem(s_elem);
+    struct list_elem* list_elem=list_pop_back(s_elem->p);
+    free(list_elem);
 }
 
 static void list_pop_front_wrapper(char** args UNUSED,struct struct_elem* s_elem){
-    list_pop_front(s_elem->p);
-    free_struct_elem(s_elem);
+    struct list_elem* list_elem=list_pop_front(s_elem->p);
+    free(list_elem);
 }
 
 static void list_front_wrapper(char** args UNUSED,struct struct_elem* s_elem){
@@ -213,6 +213,86 @@ static void list_front_wrapper(char** args UNUSED,struct struct_elem* s_elem){
 
 static void list_back_wrapper(char** args,struct struct_elem* s_elem){
     printf("%d\n",list_back(s_elem->p)->data);
+}
+
+bool list_elem_cmp_descending(const struct list_elem* a, const struct list_elem* b, void *aux UNUSED){
+    if(a->data<=b->data){
+        return true;
+    }
+    return false;
+}
+
+bool list_elem_cmp_ascending(const struct list_elem* a, const struct list_elem* b, void *aux UNUSED){
+    if(a->data>b->data){
+        return false;
+    }
+    return true;
+}
+
+static void list_insert_ordered_wrapper(char** args, struct struct_elem* s_elem){
+    struct list_elem* list_elem=malloc(sizeof *list_elem);
+    list_elem->data=atoi(args[2]);
+    list_insert_ordered(s_elem->p,list_elem,list_elem_cmp_ascending,NULL);
+}
+
+static void list_insert_wrapper(char** args, struct struct_elem* s_elem){
+    int idx=atoi(args[2]);
+    int i;
+    struct list_elem* list_elem=malloc(sizeof *list_elem);
+    struct list_elem* iter;
+    list_elem->data=atoi(args[3]);
+    for(i=0,iter=list_begin((struct list*)s_elem->p); i<idx ;i++,iter=list_next(iter));
+    list_insert(iter,list_elem);
+    
+}
+
+static void list_empty_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    if(list_empty(s_elem->p)){
+        printf("true\n");
+    }else{
+        printf("false\n");
+    }
+}
+static void list_size_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    printf("%lu\n",list_size(s_elem->p));
+}
+
+static void list_max_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    printf("%d\n",list_max((struct list*) s_elem->p,list_elem_cmp_ascending,NULL)->data);
+}
+
+static void list_min_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    void* aux=NULL;
+    printf("%d\n",list_min( (struct list*) s_elem->p,list_elem_cmp_descending,aux)->data);
+}
+
+static void list_remove_wrapper(char** args, struct struct_elem* s_elem){
+    int idx=atoi(args[2]);
+    int i;
+    struct list_elem* iter;
+    for(i=0,iter=list_begin((struct list*)s_elem->p); i<idx ;i++,iter=list_next(iter));
+    list_remove(iter);
+    free(iter);
+}
+
+static void list_reverse_wrapper(char** args,struct struct_elem* s_elem){
+    list_reverse(s_elem->p);
+}
+
+static void list_shuffle_wrapper(char** args,struct struct_elem* s_elem){
+
+}
+
+static void list_sort_wrapper(char** args,struct struct_elem* s_elem){
+    list_sort(s_elem->p,list_elem_cmp_ascending,NULL);
+}
+
+static void list_splice_wrapper(char** args,struct struct_elem* s_elem){
+    // list_splice()
+}
+
+static void list_swap_wrapper(char** args,struct struct_elem* s_elem){
+    
 }
 
 struct util_wrapper wrapper_list[]={
@@ -232,9 +312,11 @@ struct util_wrapper wrapper_list[]={
                 {"list_push_back",list_push_back_wrapper},{"list_push_front",list_push_front_wrapper},
                 {"list_pop_back",list_pop_back_wrapper},{"list_pop_front",list_pop_front_wrapper},
                 {"list_front",list_front_wrapper},{"list_back",list_back_wrapper},
-                // "list_insert_ordered","list_insert",
-                // "list_empty","list_size","list_max","list_min","list_remove",
-                // "list_reverse","list_shuffle","list_sort","list_splice","list_swap",
+                {"list_insert_ordered",list_insert_ordered_wrapper},{"list_insert",list_insert_wrapper},
+                {"list_empty",list_empty_wrapper},{"list_size",list_size_wrapper},{"list_max",list_max_wrapper},
+                {"list_min",list_min_wrapper},{"list_remove",list_remove_wrapper},{"list_reverse",list_reverse_wrapper},
+                {"list_shuffle",list_shuffle_wrapper},{"list_sort",list_sort_wrapper},{"list_splice",list_splice_wrapper},
+                {"list_swap",list_swap_wrapper},
                 // "list_unique"
                 // ,"delete","quit"
                 };
@@ -338,7 +420,7 @@ int main() {
         int i;
 
         find_from_all_list(name,&s_elem);
-        for(i=0;i<30;i++){
+        for(i=0;i<40;i++){
             if(!strcmp(args[0],wrapper_list[i].name)){
                 wrapper_list[i].wrapper(args,s_elem);
                 break;

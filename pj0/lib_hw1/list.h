@@ -178,4 +178,6 @@ struct list* list_create_with_name(char*);
 
 void list_dump(struct list*);
 
+struct list_elem* find_list_elem(struct list*  ,int data);
+
 #endif /* lib/kernel/list.h */
