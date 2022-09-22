@@ -10,6 +10,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define SPACE ' '
+#define TAB '\t'
+#define ENTER '\n'
+
+#define whitespace(x) ( ( (x) ==SPACE) || ( (x) == TAB)  )
 enum struct_type {HASH, LIST, BITMAP};
 struct list all_list;
 struct struct_elem {

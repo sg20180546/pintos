@@ -11,6 +11,8 @@
 #include "hex_dump.h"	// 'hex_dump' : defined in pintos/src/lib/stdio.c
 #define ASSERT(CONDITION) assert(CONDITION)	// patched for proj0-2
 
+
+
 /* Element type.
 
    This must be an unsigned integer type at least as wide as int.
@@ -86,6 +88,7 @@ bitmap_create (size_t bit_cnt)
   if (b != NULL)
     {
       b->bit_cnt = bit_cnt;
+ 
       b->bits = malloc (byte_cnt (bit_cnt));
       if (b->bits != NULL || bit_cnt == 0)
         {
@@ -248,7 +251,6 @@ bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value)
   for (i = 0; i < cnt; i++)
     if (bitmap_test (b, start + i) == value)
       value_cnt++;
-  printf("%ld\n",value_cnt);
   return value_cnt;
 }
 
@@ -265,10 +267,10 @@ bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value)
 
   for (i = 0; i < cnt; i++)
     if (bitmap_test (b, start + i) == value){
-        printf("true\n");
+
         return true;
       }
-  printf("false\n");
+
   return false;
 }
 
@@ -380,10 +382,23 @@ bitmap_dump (const struct bitmap *b)
 }
 
 struct bitmap* bitmap_expand(struct bitmap* bitmap,int size){
-  struct bitmap* ret=bitmap_create(size);
-  if(ret==NULL){
-    return ret;
-  }
+  struct bitmap* ret=bitmap_create(size+bitmap->bit_cnt);
+
+  ASSERT(ret);
   memcpy(ret->bits,bitmap->bits,byte_cnt(bitmap->bit_cnt));
+  free(bitmap->bits);
+  free(bitmap);
   return ret;
+}
+
+void bitmap_dump_bit(struct bitmap* bitmap){
+    int i;
+    for(i=0;i<bitmap->bit_cnt;i++){
+      if(bitmap_test(bitmap,i)){
+        printf("1");
+      }else{
+        printf("0");
+      }
+    }
+    printf("\n");
 }

@@ -50,5 +50,6 @@ void bitmap_dump (const struct bitmap *);
 
 
 struct bitmap* bitmap_expand(struct bitmap*,int);
-
+void bitmap_dump_bit(struct bitmap*);
+#define BIT_TO_BYTE(x) (x)/8
 #endif /* lib/kernel/bitmap.h */
