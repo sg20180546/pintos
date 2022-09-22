@@ -8,7 +8,7 @@ void free_struct_elem(struct struct_elem* s_elem){
     free(s_elem);
 }
 
-
+void find_from_all_list(char* name,struct struct_elem** s_elem);
 
 
 
@@ -288,11 +288,34 @@ static void list_sort_wrapper(char** args,struct struct_elem* s_elem){
 }
 
 static void list_splice_wrapper(char** args,struct struct_elem* s_elem){
-    // list_splice()
+    int idx=atoi(args[2]);
+    struct struct_elem* src;
+    find_from_all_list(args[3],&src);
+    int start=atoi(args[4]);
+    int end=atoi(args[5]);
+
+    struct list_elem* before;
+    struct list_elem* first;
+    struct list_elem* last;
+    int i;
+    for(i=0,before=list_begin((struct list*)s_elem->p);i<idx;i++,before=list_next(before));
+    // list_splice
+    for(i=0,first=list_begin((struct list*)src->p);i<start;i++,first=list_next(first));
+    for(i=0,last=list_begin((struct list*)src->p);i<end;i++,last=list_next(last) );
+    list_splice(before,first,last);
 }
 
 static void list_swap_wrapper(char** args,struct struct_elem* s_elem){
-    
+    int i;
+    struct list_elem* l1;
+    struct list_elem* l2;
+    int idx1=atoi(args[2]);
+    int idx2=atoi(args[3]);
+
+    for(i=0,l1=list_begin((struct list*)s_elem->p);i<idx1;i++,l1=list_next(l1));
+    for(i=0,l2=list_begin((struct list*)s_elem->p);i<idx2;i++,l2=list_next(l2));
+    printf("%d %d\n",l1->data,l2->data);
+    list_swap(l1,l2);
 }
 
 struct util_wrapper wrapper_list[]={

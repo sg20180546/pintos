@@ -535,17 +535,37 @@ list_min (struct list *list, list_less_func *less, void *aux)
   return min;
 }
 void list_swap(struct list_elem* a, struct list_elem* b){
-  ASSERT(is_interior(a));
-  ASSERT(is_interior(b));
+  // ASSERT(is_interior(a));
+  // ASSERT(is_interior(b));
   struct list_elem* anext=a->next;
   struct list_elem* aprev=a->prev;
   struct list_elem* bnext=b->next;
   struct list_elem* bprev=b->prev;
 
-  b->next=anext;
-  b->prev=aprev;
-  a->next=bnext;
-  a->next=bprev;
+  // a->next=bnext;
+  // a->prev=bprev;
+  // if(bnext) bnext->prev=a;
+  // if(bprev) bprev->next=a;
+
+  // b->next=anext;
+  // b->prev=aprev;
+  // if(anext) anext->prev=b;
+  // if(aprev) aprev->next=b;
+  // b->next=anext;
+  // b->prev=aprev;
+  // a->next=bnext;
+  // a->next=bprev;
+  anext=list_remove(a);
+  bnext=list_remove(b);
+  // if(is_interior())
+  if(is_tail(anext)){
+    
+  }else{
+
+  }
+  if(is_tail(bnext)){
+
+  }
 }
 
 
