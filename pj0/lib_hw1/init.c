@@ -28,7 +28,7 @@ void free_struct_elem(struct struct_elem* s_elem){
     free(s_elem);
 }
 
-void find_from_all_list(char* name,struct struct_elem** s_elem);
+static struct struct_elem* find_from_all_list(char* name);
 
 
 
@@ -121,13 +121,13 @@ static void delete_wrapper(char** args UNUSED,struct struct_elem* s_elem){
     switch (s_elem->s_type)
     {
     case BITMAP:
-        delete_bitmap(s_elem->p);
+        // delete_bitmap(s_elem->p);
         break;
     case HASH:
-        delete_hash(s_elem->p);
+        // delete_hash(s_elem->p);
         break;
     case LIST:
-        delete_list(s_elem->p);
+        // delete_list(s_elem->p);
         break;
     default:
         break;
@@ -400,7 +400,7 @@ static void list_sort_wrapper(char** args,struct struct_elem* s_elem){
 static void list_splice_wrapper(char** args,struct struct_elem* s_elem){
     int idx=atoi(args[2]);
     struct struct_elem* src;
-    find_from_all_list(args[3],&src);
+    src=find_from_all_list(args[3]);
     int start=atoi(args[4]);
     int end=atoi(args[5]);
 
@@ -428,8 +428,27 @@ static void list_swap_wrapper(char** args,struct struct_elem* s_elem){
     list_swap(l1,l2);
 }
 
+static bool list_less(const struct list_elem *a, const struct list_elem *b, void *aux){
+    if(a->data>b->data){
+        return true;
+    }
+    return false;
+}
+static void list_unique_wrapper(char** args,struct struct_elem* s_elem){
+    struct struct_elem* duplicates=NULL;
+
+    duplicates=find_from_all_list(args[2]);
+
+
+    if(duplicates!=NULL){
+        list_unique(s_elem->p,duplicates->p,list_less,NULL);
+    }else{
+        list_unique(s_elem->p,NULL,list_less,NULL);
+    }
+}
+
 struct util_wrapper wrapper_list[]={
-                {"dumpdata",dumpdata},
+                {"dumpdata",dumpdata},{"delete",delete_wrapper},
                 /* bitmap */
                 {"bitmap_mark",bitmap_mark_wrapper},{"bitmap_all",bitmap_all_wrapper},{"bitmap_any",bitmap_any_wrapper},
                 {"bitmap_contains",bitmap_contains_wrapper},{"bitmap_count",bitmap_count_wrapper},
@@ -450,9 +469,7 @@ struct util_wrapper wrapper_list[]={
                 {"list_empty",list_empty_wrapper},{"list_size",list_size_wrapper},{"list_max",list_max_wrapper},
                 {"list_min",list_min_wrapper},{"list_remove",list_remove_wrapper},{"list_reverse",list_reverse_wrapper},
                 {"list_shuffle",list_shuffle_wrapper},{"list_sort",list_sort_wrapper},{"list_splice",list_splice_wrapper},
-                {"list_swap",list_swap_wrapper},
-                // "list_unique"
-                // ,"delete","quit"
+                {"list_swap",list_swap_wrapper},{"list_unique",list_unique_wrapper}
                 };
 
 
@@ -460,17 +477,18 @@ struct util_wrapper wrapper_list[]={
 
 
 
-void find_from_all_list(char* name,struct struct_elem** s_elem){
+static struct struct_elem* find_from_all_list(char* name){
     struct list_elem* iter;
     struct struct_elem* s_iter;
+    struct struct_elem* ret=NULL;
     for(iter=list_begin(&all_list);iter!=list_end(&all_list);iter=list_next(iter)){
         s_iter=list_entry(iter,struct struct_elem,elem);
         if(!strcmp(name,s_iter->name)){
+            ret=s_iter;
             break;
         }
     }
-    ASSERT(s_iter->p);
-    *s_elem=s_iter;
+    return ret;
 }
 
 
@@ -554,9 +572,13 @@ int main() {
         char*name=args[1];
         struct struct_elem* s_elem;
         int i;
+        s_elem=find_from_all_list(name);
+        // if(!strcmp(args[0],"delete")){
+        //     delete_wrapper()
+        //     continue;            
+        // }
 
-        find_from_all_list(name,&s_elem);
-        for(i=0;i<45;i++){
+        for(i=0;i<47;i++){
             if(!strcmp(args[0],wrapper_list[i].name)){
                 wrapper_list[i].wrapper(args,s_elem);
                 break;
