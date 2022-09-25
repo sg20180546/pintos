@@ -8,6 +8,7 @@
 #include "hash.h"
 #include <assert.h>	// Instead of 	#include "../debug.h"
 #include <stdlib.h>	//		#include "threads/malloc.h"
+#include <stdio.h>
 
 #define ASSERT(CONDITION) assert(CONDITION)	// patched for proj0-2
 
@@ -165,14 +166,13 @@ void
 hash_apply (struct hash *h, hash_action_func *action) 
 {
   size_t i;
-  
+  ASSERT(h->buckets);
   ASSERT (action != NULL);
 
   for (i = 0; i < h->bucket_cnt; i++) 
     {
       struct list *bucket = &h->buckets[i];
       struct list_elem *elem, *next;
-
       for (elem = list_begin (bucket); elem != list_end (bucket); elem = next) 
         {
           next = list_next (elem);
@@ -437,4 +437,24 @@ unsigned hash_int_2(int key) {
   key=key^(key<<3);
 	key =key^0x27d4eb2d;
   return key;
+}
+
+
+void hash_dump(struct hash* hash){
+  int i;
+  struct list_elem * iter;
+  struct hash_elem* h_elem;
+  bool printed=false;
+  for(i=0;i<hash->bucket_cnt;i++){
+    if(!list_empty(&hash->buckets[i])){
+      printed=true;
+      for(iter=list_begin(&hash->buckets[i]);iter!=list_end(&hash->buckets[i]);iter=list_next(iter)){
+        h_elem=list_elem_to_hash_elem(iter);
+        printf("%d ",h_elem->data);
+      }
+    }
+  }
+  if(printed){
+    printf("\n");
+  }
 }

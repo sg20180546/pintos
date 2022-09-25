@@ -28,6 +28,7 @@
 /* Hash element. */
 struct hash_elem 
   {
+    int data;
     struct list_elem list_elem;
   };
 
@@ -105,4 +106,5 @@ unsigned hash_int (int);
 
 // Requirement
 unsigned hash_int_2(int);
+void hash_dump(struct hash* hash);
 #endif /* lib/kernel/hash.h */

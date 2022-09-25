@@ -1,7 +1,27 @@
 #include "init.h"
-void delete_list(struct list* list){
-
+static void delete_list(struct list* list){
+    struct list_elem* iter;
+    struct list_elem* removed;
+    for(iter=list_begin(list);iter!=list_end(list);){
+        removed=iter;
+        iter=list_remove(iter);
+        free(removed);
+    }
 }
+
+static void hash_desctructor(struct hash_elem *e, void *aux UNUSED){
+    list_remove(&e->list_elem);
+    free(e);
+}
+
+static void delete_hash(struct hash* hash){
+    hash_destroy(hash,hash_desctructor);
+}
+
+static void delete_bitmap(struct bitmap* bitmap){
+    bitmap_destroy(bitmap);
+}
+
 void free_struct_elem(struct struct_elem* s_elem){
     list_remove(&s_elem->elem);
     free(s_elem->p);
@@ -20,10 +40,9 @@ static void dumpdata(char** args,struct struct_elem* s_elem){
         list_dump(s_elem->p);
         break;
     case HASH:
+        hash_dump(s_elem->p);
         break;
-
     case BITMAP:
-
         bitmap_dump_bit(s_elem->p);
         break;
     default:
@@ -99,6 +118,20 @@ static void bitmap_set_all_wraper(char** args,struct struct_elem* s_elem){
 }
 
 static void delete_wrapper(char** args UNUSED,struct struct_elem* s_elem){
+    switch (s_elem->s_type)
+    {
+    case BITMAP:
+        delete_bitmap(s_elem->p);
+        break;
+    case HASH:
+        delete_hash(s_elem->p);
+        break;
+    case LIST:
+        delete_list(s_elem->p);
+        break;
+    default:
+        break;
+    }
     free_struct_elem(s_elem);
 }
 
@@ -193,8 +226,85 @@ static void bitmap_test_wrapper(char** args,struct struct_elem* s_elem){
     }
 }
 
+static unsigned hash_hash(const struct hash_elem *e, void *aux UNUSED){
+    return hash_int(e->data);
+}
+
+static bool hash_less(const struct hash_elem *a, const struct hash_elem *b, void *aux){
+    if(hash_int(a->data)>=hash_int(b->data)){
+        return false;
+    }
+    return true;
+}
+
 static void hash_insert_wrapper(char** args, struct struct_elem* s_elem){
-    // hash_insert(s_elem->p,)
+    int data=atoi(args[2]);
+    struct hash_elem* h_elem=malloc(sizeof *h_elem);
+    h_elem->data=data;
+    hash_insert(s_elem->p,h_elem);
+}
+
+static void square(struct hash_elem *e, void *aux UNUSED){
+    e->data=e->data*e->data;
+}
+
+static void triple(struct hash_elem *e, void *aux UNUSED){
+    e->data=(e->data)*(e->data)*(e->data);
+}
+
+static void hash_apply_wrapper(char** args, struct struct_elem* s_elem){
+    char* func=args[2];
+    if(!strcmp(func,"square")){
+        hash_apply(s_elem->p,square);
+    }else if(!strcmp(func,"triple")) {
+        hash_apply(s_elem->p,triple);
+    }
+}
+
+static void hash_delete_wrapper(char** args, struct struct_elem* s_elem){
+    int data=atoi(args[2]);
+    struct hash_elem h_elem;
+    struct hash_elem* res;
+    h_elem.data=data;
+    res=hash_find(s_elem->p,&h_elem);
+    if(res){
+        hash_delete(s_elem->p,res);
+    }
+}
+
+static void hash_size_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    size_t size=hash_size(s_elem->p);
+    printf("%ld\n",size);
+}
+
+static void hash_empty_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    if(hash_empty(s_elem->p)){
+        printf("true\n");
+    }else{
+        printf("false\n");
+    }
+}
+
+static void hash_find_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    int data=atoi(args[2]);
+    struct hash_elem h_elem;
+    struct hash_elem* res;
+    h_elem.data=data;
+    res=hash_find(s_elem->p,&h_elem);
+    if(res!=NULL){
+        printf("%d\n",data);
+    }
+}
+
+static void hash_clear_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    hash_clear(s_elem->p,NULL);
+}
+
+static void hash_replace_wrapper(char** args UNUSED, struct struct_elem* s_elem){
+    int newdata=atoi(args[2]);
+    struct hash_elem* h_elem=malloc(sizeof *h_elem);
+    h_elem->data=newdata;
+    hash_replace(s_elem->p,h_elem);
 }
 
 static void list_pop_back_wrapper(char** args UNUSED,struct struct_elem* s_elem){
@@ -329,8 +439,9 @@ struct util_wrapper wrapper_list[]={
                 {"bitmap_reset",bitmap_reset_wrapper},{"bitmap_set_multiple",bitmap_set_multiple_wrapper},
                 {"bitmap_set",bitmap_set_wrapper},{"bitmap_size",bitmap_size_wrapper},{"bitmap_test",bitmap_test_wrapper},
                 // /* hash */
-                // "hash_insert","hash_apply","hash_delete","hash_size",
-                // "hash_clear","hash_empty","hash_find","hash_replace"
+                {"hash_insert",hash_insert_wrapper},{"hash_apply",hash_apply_wrapper},{"hash_delete",hash_delete_wrapper},
+                {"hash_size",hash_size_wrapper},{"hash_clear",hash_clear_wrapper},{"hash_empty",hash_empty_wrapper},
+                {"hash_find",hash_find_wrapper},{"hash_replace",hash_replace_wrapper},
                 // /* list */
                 {"list_push_back",list_push_back_wrapper},{"list_push_front",list_push_front_wrapper},
                 {"list_pop_back",list_pop_back_wrapper},{"list_pop_front",list_pop_front_wrapper},
@@ -420,6 +531,8 @@ int main() {
             }else if(!strcmp(args[1],"hashtable")){
             //hash 
                 struct hash* hash; // create
+                hash=malloc(sizeof*hash);
+                hash_init(hash,hash_hash,hash_less,NULL);
                 s_elem->p=hash;
                 s_elem->s_type=HASH;
             }else{
@@ -443,7 +556,7 @@ int main() {
         int i;
 
         find_from_all_list(name,&s_elem);
-        for(i=0;i<40;i++){
+        for(i=0;i<45;i++){
             if(!strcmp(args[0],wrapper_list[i].name)){
                 wrapper_list[i].wrapper(args,s_elem);
                 break;
