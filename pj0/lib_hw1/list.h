@@ -174,8 +174,6 @@ struct list_elem *list_min (struct list *, list_less_func *, void *aux);
 void list_swap(struct list_elem*, struct list_elem*);
 void list_shuffle(struct list*);
 
-struct list* list_create_with_name(char*);
-
 void list_dump(struct list*);
 
 struct list_elem* find_list_elem(struct list*  ,int data);

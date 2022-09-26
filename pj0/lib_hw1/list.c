@@ -535,46 +535,54 @@ list_min (struct list *list, list_less_func *less, void *aux)
   return min;
 }
 void list_swap(struct list_elem* a, struct list_elem* b){
-  // ASSERT(is_interior(a));
-  // ASSERT(is_interior(b));
+
+  
+
   struct list_elem* anext=a->next;
   struct list_elem* aprev=a->prev;
   struct list_elem* bnext=b->next;
   struct list_elem* bprev=b->prev;
 
-  // a->next=bnext;
-  // a->prev=bprev;
-  // if(bnext) bnext->prev=a;
-  // if(bprev) bprev->next=a;
-
-  // b->next=anext;
-  // b->prev=aprev;
-  // if(anext) anext->prev=b;
-  // if(aprev) aprev->next=b;
-  // b->next=anext;
-  // b->prev=aprev;
-  // a->next=bnext;
-  // a->next=bprev;
-  anext=list_remove(a);
-  bnext=list_remove(b);
-  // if(is_interior())
-  if(is_tail(anext)){
-    
-  }else{
-
+  if(anext==b){
+    anext=list_remove(a);
+    list_insert(anext->next,a);
+    return;
   }
-  if(is_tail(bnext)){
+  if(bnext==a){
+    bnext=list_remove(b);
+    list_insert(bnext->next,b);
+    return;
+  }
 
+
+  a->next=bnext;
+  a->prev=bprev;
+  b->next=anext;
+  b->prev=aprev;
+  
+  aprev->next=b;
+  anext->prev=b;
+  bnext->prev=a;
+  bprev->next=a;
+  // swap(&a,&b);
+
+}
+
+void list_shuffle(struct list* list){
+  size_t size=list_size(list);
+  struct list_elem* elem;
+  struct list_elem* iter;
+  int i;
+  int j;
+  int new_idx;
+  for(i=0;i<size;i++){
+    elem=list_pop_front(list);
+    new_idx=(rand()-i)%(size-1);
+    for(j=0,iter=list_begin(list) ;j<new_idx; j++,iter=list_next(iter));
+    list_insert(iter,elem);
   }
 }
 
-
-struct list* list_create_with_name(char* name){
-  struct list* ret= malloc(sizeof *ret);
-  list_init(ret);
-  strcpy(name,ret->name);
-  return ret;
-}
 
 void list_dump(struct list* list){
   struct list_elem* iter;

@@ -385,12 +385,12 @@ static void list_remove_wrapper(char** args, struct struct_elem* s_elem){
     free(iter);
 }
 
-static void list_reverse_wrapper(char** args,struct struct_elem* s_elem){
+static void list_reverse_wrapper(char** args UNUSED,struct struct_elem* s_elem){
     list_reverse(s_elem->p);
 }
 
-static void list_shuffle_wrapper(char** args,struct struct_elem* s_elem){
-
+static void list_shuffle_wrapper(char** args UNUSED,struct struct_elem* s_elem){
+    list_shuffle(s_elem->p);
 }
 
 static void list_sort_wrapper(char** args,struct struct_elem* s_elem){
@@ -424,7 +424,6 @@ static void list_swap_wrapper(char** args,struct struct_elem* s_elem){
 
     for(i=0,l1=list_begin((struct list*)s_elem->p);i<idx1;i++,l1=list_next(l1));
     for(i=0,l2=list_begin((struct list*)s_elem->p);i<idx2;i++,l2=list_next(l2));
-    printf("%d %d\n",l1->data,l2->data);
     list_swap(l1,l2);
 }
 
