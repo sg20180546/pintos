@@ -138,19 +138,18 @@ static void delete_wrapper(char** args UNUSED,struct struct_elem* s_elem){
 static void list_push_back_wrapper(char** args,struct struct_elem* s_elem){
     // printf("%s %s %s\n",args[0],args[1],args[2]);
     int data=atoi(args[2]);
-
-    struct list_elem* new=malloc(sizeof *new);
+    struct list_item* new=malloc(sizeof *new);
     new->data=data;
     
-    list_push_back((struct list*) s_elem->p,new);
+    list_push_back((struct list*) s_elem->p,&new->elem);
 }
 
 static void list_push_front_wrapper(char** args,struct struct_elem* s_elem){
     int data=atoi(args[2]);
-    struct list_elem* new=malloc(sizeof *new);
+    struct list_item* new=malloc(sizeof *new);
     new->data=data;
     
-    list_push_front((struct list*) s_elem->p,new);
+    list_push_front((struct list*) s_elem->p,&new->elem);
 }
 
 static void bitmap_flip_wrapper(char** args, struct struct_elem* s_elem){
@@ -309,50 +308,53 @@ static void hash_replace_wrapper(char** args UNUSED, struct struct_elem* s_elem)
 
 static void list_pop_back_wrapper(char** args UNUSED,struct struct_elem* s_elem){
     struct list_elem* list_elem=list_pop_back(s_elem->p);
-    free(list_elem);
+    struct list_item* l_item=list_entry(list_elem,struct list_item,elem);
+    free(l_item);
 }
 
 static void list_pop_front_wrapper(char** args UNUSED,struct struct_elem* s_elem){
     struct list_elem* list_elem=list_pop_front(s_elem->p);
-    free(list_elem);
+    struct list_item* l_item=list_entry(list_elem,struct list_item,elem);
+    free(l_item);
 }
 
 static void list_front_wrapper(char** args UNUSED,struct struct_elem* s_elem){
-    printf("%d\n",list_front(s_elem->p)->data);
+    printf("%d\n",list_entry(list_front(s_elem->p),struct list_item,elem)->data );
 }
 
 static void list_back_wrapper(char** args,struct struct_elem* s_elem){
-    printf("%d\n",list_back(s_elem->p)->data);
+    printf("%d\n",list_entry(list_back(s_elem->p),struct list_item,elem)->data);
 }
 
 bool list_elem_cmp_descending(const struct list_elem* a, const struct list_elem* b, void *aux UNUSED){
-    if(a->data<=b->data){
+    if(list_entry(a,struct list_item,elem)->data <=list_entry(b,struct list_item,elem)->data){
         return true;
     }
     return false;
 }
 
 bool list_elem_cmp_ascending(const struct list_elem* a, const struct list_elem* b, void *aux UNUSED){
-    if(a->data>b->data){
+    if(list_entry(a,struct list_item,elem)->data> list_entry(b,struct list_item,elem)->data){
         return false;
     }
     return true;
 }
 
 static void list_insert_ordered_wrapper(char** args, struct struct_elem* s_elem){
-    struct list_elem* list_elem=malloc(sizeof *list_elem);
-    list_elem->data=atoi(args[2]);
-    list_insert_ordered(s_elem->p,list_elem,list_elem_cmp_ascending,NULL);
+    struct list_item* list_item=malloc(sizeof *list_item);
+    list_item->data=atoi(args[2]);
+
+    list_insert_ordered(s_elem->p,&list_item->elem,list_elem_cmp_ascending,NULL);
 }
 
 static void list_insert_wrapper(char** args, struct struct_elem* s_elem){
     int idx=atoi(args[2]);
     int i;
-    struct list_elem* list_elem=malloc(sizeof *list_elem);
+    struct list_item* list_item=malloc(sizeof *list_item);
     struct list_elem* iter;
-    list_elem->data=atoi(args[3]);
+    list_item->data=atoi(args[3]);
     for(i=0,iter=list_begin((struct list*)s_elem->p); i<idx ;i++,iter=list_next(iter));
-    list_insert(iter,list_elem);
+    list_insert(iter,&list_item->elem);
     
 }
 
@@ -368,21 +370,23 @@ static void list_size_wrapper(char** args UNUSED, struct struct_elem* s_elem){
 }
 
 static void list_max_wrapper(char** args UNUSED, struct struct_elem* s_elem){
-    printf("%d\n",list_max((struct list*) s_elem->p,list_elem_cmp_ascending,NULL)->data);
+    printf("%d\n",list_entry(list_max((struct list*) s_elem->p,list_elem_cmp_ascending,NULL),struct list_item,elem)->data);
 }
 
 static void list_min_wrapper(char** args UNUSED, struct struct_elem* s_elem){
     void* aux=NULL;
-    printf("%d\n",list_min( (struct list*) s_elem->p,list_elem_cmp_descending,aux)->data);
+    printf("%d\n",list_entry(list_min((struct list*) s_elem->p,list_elem_cmp_descending,aux),struct list_item,elem)->data);
 }
 
 static void list_remove_wrapper(char** args, struct struct_elem* s_elem){
     int idx=atoi(args[2]);
     int i;
     struct list_elem* iter;
+    struct list_item* item;
     for(i=0,iter=list_begin((struct list*)s_elem->p); i<idx ;i++,iter=list_next(iter));
     list_remove(iter);
-    free(iter);
+    item=list_entry(iter,struct list_item,elem);
+    free(item);
 }
 
 static void list_reverse_wrapper(char** args UNUSED,struct struct_elem* s_elem){
@@ -428,7 +432,7 @@ static void list_swap_wrapper(char** args,struct struct_elem* s_elem){
 }
 
 static bool list_less(const struct list_elem *a, const struct list_elem *b, void *aux){
-    if(a->data>b->data){
+    if(list_entry(a,struct list_item,elem)->data > list_entry(b,struct list_item,elem)->data){
         return true;
     }
     return false;

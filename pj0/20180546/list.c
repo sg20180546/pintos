@@ -591,7 +591,7 @@ void list_dump(struct list* list){
     return;
   }
   for(iter=list_begin(list);iter!=list_end(list);iter=list_next(iter)){
-    printf("%d ",iter->data);
+    printf("%d ",list_entry(iter,struct list_item,elem)->data);
   }
   printf("\n");
 }
@@ -599,7 +599,7 @@ void list_dump(struct list* list){
 struct list_elem* find_list_elem(struct list*  list,int data){
   struct list_elem* iter;
   for(iter=list_begin(list);iter!=list_end(list);iter=list_next(iter)){
-    if(data==iter->data){
+    if(data==list_entry(iter,struct list_item,elem)->data){
       return iter;
     }
   }

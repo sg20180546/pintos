@@ -89,10 +89,16 @@
 /* List element. */
 struct list_elem 
   {
-    int data;
     struct list_elem *prev;     /* Previous list element. */
     struct list_elem *next;     /* Next list element. */
   };
+
+struct list_item
+{
+  struct list_elem elem;
+  int data;
+};
+
 
 /* List. */
 struct list 
