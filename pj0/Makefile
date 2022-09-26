@@ -1,8 +1,8 @@
 
 
 test:
-	cd lib_hw1 && make
-	cd os_hw1_tester && ./hw1_tester.sh ../lib_hw1/main
+	cd 20180546 && make
+	cd os_hw1_tester && sh hw1_tester.sh ../20180546/testlib
 
 clean:
 	cd os_hw1_tester && make

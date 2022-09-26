@@ -553,13 +553,11 @@ void list_swap(struct list_elem* a, struct list_elem* b){
     list_insert(bnext->next,b);
     return;
   }
-
-
+  
   a->next=bnext;
   a->prev=bprev;
   b->next=anext;
   b->prev=aprev;
-  
   aprev->next=b;
   anext->prev=b;
   bnext->prev=a;
@@ -575,12 +573,15 @@ void list_shuffle(struct list* list){
   int i;
   int j;
   int new_idx;
-  for(i=0;i<size;i++){
+
+  for(i=0;i<size+1;i++){
     elem=list_pop_front(list);
-    new_idx=(rand()-i)%(size-1);
+    new_idx=(rand())%(size);
     for(j=0,iter=list_begin(list) ;j<new_idx; j++,iter=list_next(iter));
     list_insert(iter,elem);
   }
+  elem=list_pop_back(list);
+  list_push_front(list,elem);
 }
 
 
