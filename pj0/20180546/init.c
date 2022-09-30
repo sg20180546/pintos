@@ -24,7 +24,10 @@ static void delete_bitmap(struct bitmap* bitmap){
 
 void free_struct_elem(struct struct_elem* s_elem){
     list_remove(&s_elem->elem);
-    free(s_elem->p);
+    
+    if(s_elem->s_type!=BITMAP) {
+        free(s_elem->p);
+    }
     free(s_elem);
 }
 
@@ -121,13 +124,13 @@ static void delete_wrapper(char** args UNUSED,struct struct_elem* s_elem){
     switch (s_elem->s_type)
     {
     case BITMAP:
-        // delete_bitmap(s_elem->p);
+        delete_bitmap(s_elem->p);
         break;
     case HASH:
-        // delete_hash(s_elem->p);
+        delete_hash(s_elem->p);
         break;
     case LIST:
-        // delete_list(s_elem->p);
+        delete_list(s_elem->p);
         break;
     default:
         break;
