@@ -176,7 +176,7 @@ thread_print_stats (void)
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
-tid_t
+struct thread*
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
@@ -211,7 +211,8 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-
+    ASSERT(t!=thread_current());
+    t->parent=thread_current();
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -506,7 +507,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wait_on_lock=NULL;
   t->recent_cpu=0;
   t->recalculated=false;
-
+  // ASSERT(thread_current()!=t)
+  // t->parent=thread_current();
 #ifdef USERPROG
   t->exit_status=0;
   list_init(&t->ps_wait_list);

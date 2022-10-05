@@ -188,11 +188,11 @@ static void mlfqs_recalculate_priority_in_sleep_list(void){
   }
 }
 
-static void mlfqs_recalculate_recent_cpu_in_sleep_list(void){
+static void mlfqs_recalculate_recent_cpu_in_all_list(void){
   struct list_elem* iter;
   struct thread* t_iter;
-  for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)){ 
-    t_iter=list_entry(iter,struct thread,elem);
+  for(iter=list_begin(&all_list);iter!=list_end(&all_list);iter=list_next(iter)){ 
+    t_iter=list_entry(iter,struct thread,allelem);
     mlfqs_recalculate_recent_cpu(t_iter);
   }
 }
@@ -223,9 +223,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
     
     if(PER_SECOND(ticks)) { // every second
       mlfqs_recalculate_load_avg();
-      mlfqs_recalculate_recent_cpu_in_sleep_list();
-      mlfqs_recalculate_recent_cpu_in_priority_ready_list();
-      mlfqs_recalculate_recent_cpu(t_iter);
+      mlfqs_recalculate_recent_cpu_in_all_list();
+      // mlfqs_recalculate_recent_cpu_in_priority_ready_list();
+      // mlfqs_recalculate_recent_cpu(t_iter);
     }
 
     if(ticks%4==0){ // every 4 ticks

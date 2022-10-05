@@ -1,0 +1,4 @@
+*.output
+*.result
+Score.txt
+testlib

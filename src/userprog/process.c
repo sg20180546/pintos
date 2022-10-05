@@ -152,6 +152,12 @@ static void construct_argument_stack(const char* cmdline,uint32_t** esp)
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+static inline bool is_elf_file_exist(const char* name){
+  if(is_open_file_executing(name)){
+    return true;
+  }
+  return lookup(dir_open_root(),name,NULL,NULL);
+}
 tid_t
 process_execute (const char *file_name) 
 {
@@ -164,20 +170,22 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
-
+  
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+  // printf("exec 1\n");
   parse_elf_name(file_name,ELF_NAME);
-
+  if(!is_elf_file_exist(ELF_NAME)){
+    return TID_ERROR;
+  }
+  // printf("exec 2\n");
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
-
-  created->exec_tid_check=thread_current();
+  // printf("exec 3\n");
   enum intr_level level=intr_disable();
   thread_block();
   intr_set_level(level);
-
   if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
   }
@@ -195,6 +203,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  // printf("start process\n");
   // lock_init(&thread_current()->ps_wait_lock);
   // lock_acquire(&thread_current()->ps_wait_lock);
   /* Initialize interrupt frame and load executable. */
@@ -203,7 +212,10 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
+  // ASSERT(thread_current()!=thread_current()->parent);
+  // printf("after load\n");
+  // ASSERT(success);
+  thread_unblock(thread_current()->parent);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -516,8 +528,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
- while(!t->exec_tid_check);
- thread_unblock(t->exec_tid_check);
+
 
   /* We arrive here whether the load is successful or not. */
 

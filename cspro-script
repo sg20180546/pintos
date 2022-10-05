@@ -1,0 +1,3 @@
+rm -rf ../pintos.tar.gz
+tar -cvf ../pintos.tar.gz --exclude='../pintos/doc' ../pintos
+scp /home/gs201/Desktop/pintos.tar.gz cse20180546@cspro.sogang.ac.kr:/sogang/under/cse20180546/
