@@ -10,8 +10,8 @@
 #include "userprog/process.h"
 #include "lib/string.h"
 #include "devices/shutdown.h"
-
-#define MAX_SYSCALL_NR 13
+#include "devices/input.h"
+#define MAX_SYSCALL_NR 15
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
@@ -85,12 +85,16 @@ static void syscall_tell(struct intr_frame* f);
 
 static void syscall_close(struct intr_frame* f);
 
+static void syscall_max_of_four_int(struct intr_frame* f);
+
+static void syscall_fibonacci(struct intr_frame* f);
+
 struct syscall_handler_t syscall_handlers[]=
                       {{syscall_halt,"halt",0},{syscall_exit,"exit",1},{syscall_exec,"exec",1},
                         {syscall_wait,"wait",1},{syscall_create,"create",2},{syscall_remove,"remove",1},
                         {syscall_open,"open",1},{syscall_filesize,"filesize",1},{syscall_read,"read",1},
                         {syscall_write,"write",3},{syscall_seek,"seek",2},{syscall_tell,"tell",1},
-                        {syscall_close,"close",1}};
+                        {syscall_close,"close",1},{syscall_max_of_four_int,"max_of_four_int",4},{syscall_fibonacci,"fibonacci",1}};
 
 
 static inline bool is_valid_vaddr(uint32_t * esp){
@@ -111,7 +115,6 @@ static inline bool is_valid_vaddr(uint32_t * esp){
 void
 syscall_init (void) 
 {
-  // printf("system call init\n\n");
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -129,7 +132,7 @@ syscall_handler (struct intr_frame *f)
 
   uint32_t syscall_nr=*((uint32_t*)esp);
   struct syscall_handler_t* handler=&syscall_handlers[syscall_nr];
-  // printf("name : %s\n",handler->name);
+
   handler->func(f);
 }
 
@@ -147,7 +150,7 @@ static void syscall_exit(struct intr_frame* f)
 
 static void syscall_exec(struct intr_frame* f)
 { 
-  // printf("exec\n");
+
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
 
@@ -157,8 +160,8 @@ static void syscall_exec(struct intr_frame* f)
 static void syscall_wait(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
-  int fd=*(++esp);
-  f->eax=process_wait(fd);
+  int tid=*(++esp);
+  f->eax=process_wait(tid);
 }
 
 static void syscall_create(struct intr_frame* f)
@@ -225,16 +228,26 @@ static void syscall_read(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
   int fd=*(++esp);
-  void* buffer=*(++esp);
+  uint8_t* buffer=*(++esp);
   unsigned size=*(++esp);
   
 
   if(!is_user_vaddr(buffer) ){
     exit(-1);
   }
-
-  if(fd==STDOUT_FILENO||fd==STDIN_FILENO||fd<0){
+  
+  if(fd==STDOUT_FILENO||fd<0){
     exit(-1);
+  }
+
+  if(fd==STDIN_FILENO){
+    uint8_t ch;
+    int i=0;
+    while((ch=input_getc())!=-1 &&i<size ){
+      buffer[i]=ch;
+    }
+    f->eax=i;
+    return;
   }
 
   struct file* file_struct=find_file_by_fd(fd,thread_current());
@@ -296,7 +309,13 @@ static void syscall_seek(struct intr_frame* f)
 static void syscall_tell(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
-  esp++;
+  int fd=*(++esp);
+  struct file* file=find_file_by_fd(fd,thread_current());
+  int ret=-1;
+  if(file){
+    ret=file->pos;
+  }
+  f->eax=ret;
 }
 
 static void syscall_close(struct intr_frame* f)
@@ -309,4 +328,36 @@ static void syscall_close(struct intr_frame* f)
     file_allow_write(file_struct);
     file_close(file_struct);
   }
+}
+
+static void syscall_max_of_four_int(struct intr_frame* f){
+  uint32_t* esp=f->esp;
+  int a=*(++esp);
+  int b=*(++esp);
+  int c=*(++esp);
+  int d=*(++esp);
+  int ret=max(a,b);
+  ret=max(ret,c);
+  ret=max(ret,d);
+
+  f->eax=ret;
+}
+
+static int fibo(int n){
+  if(n==1||n==0){
+    return n;
+  }
+  return fibo(n-1)+fibo(n-2);
+}
+
+static void syscall_fibonacci(struct intr_frame *f){
+  uint32_t* esp=f->esp;
+  int n=*(++esp);
+  int ret;
+  if(n<0){
+    ret=0;
+  }else{
+    ret=fibo(n);
+  }
+  f->eax=ret;
 }
