@@ -507,6 +507,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wait_on_lock=NULL;
   t->recent_cpu=0;
   t->recalculated=false;
+  sema_init(&t->child_sema,0);
   // ASSERT(thread_current()!=t)
   // t->parent=thread_current();
 #ifdef USERPROG

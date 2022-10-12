@@ -183,9 +183,10 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
   // printf("exec 3\n");
-  enum intr_level level=intr_disable();
-  thread_block();
-  intr_set_level(level);
+  // enum intr_level level=intr_disable();
+  // thread_block();
+  // intr_set_level(level);
+  sema_down(&thread_current()->child_sema);
   if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
   }
@@ -215,7 +216,8 @@ start_process (void *file_name_)
   // ASSERT(thread_current()!=thread_current()->parent);
   // printf("after load\n");
   // ASSERT(success);
-  thread_unblock(thread_current()->parent);
+  sema_up(&thread_current()->parent->child_sema);
+  // thread_unblock(thread_current()->parent);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
