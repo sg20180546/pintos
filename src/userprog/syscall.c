@@ -25,6 +25,9 @@ struct syscall_handler_t {
   char argc;
 };
 
+
+struct semaphore* file_handle_lock;
+
 static struct file* find_file_by_fd(int fd,struct thread* cur) {
   struct list_elem* iter;
   struct file* f_iter;
@@ -115,6 +118,8 @@ static inline bool is_valid_vaddr(uint32_t * esp){
 void
 syscall_init (void) 
 {
+  file_handle_lock=malloc(sizeof *file_handle_lock);
+  sema_init(file_handle_lock,1);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -190,7 +195,9 @@ static void syscall_remove(struct intr_frame* f)
 
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
-  
+  sema_down(file_handle_lock);
+  filesys_remove(file);
+  sema_up(file_handle_lock);
 }
 
 static void syscall_open(struct intr_frame* f)
@@ -200,11 +207,14 @@ static void syscall_open(struct intr_frame* f)
   if(file==NULL){
     return;
   }
+  sema_down(file_handle_lock);
+
+
   struct file* file_struct=filesys_open(file);
   if(is_open_file_executing(file)){
     file_deny_write(file_struct);
   }
-
+  sema_up(file_handle_lock);
   if(file_struct==NULL){
     f->eax=-1;
   }else{
@@ -218,9 +228,11 @@ static void syscall_filesize(struct intr_frame* f)
   int fd=*(++esp);
   struct file* file_struct=find_file_by_fd(fd,thread_current());
   int ret=0;
+  sema_down(file_handle_lock);
   if(file_struct){
     ret=file_length(file_struct);
   }
+  sema_up(file_handle_lock);
   f->eax=ret;
 } 
 
@@ -280,7 +292,9 @@ static void syscall_write(struct intr_frame* f)
       if(file->deny_write){
         ret=0;
       }else{
+        sema_down(file_handle_lock);
         ret=file_write(file,buffer,size);
+        sema_up(file_handle_lock);
       }
       // ret=file_write(file,buffer,size);
     }
@@ -303,7 +317,9 @@ static void syscall_seek(struct intr_frame* f)
   int fd=*(++esp);
   off_t pos=*(++esp);
   struct file* file=find_file_by_fd(fd,thread_current());
-  file->pos=pos;
+  sema_down(file_handle_lock);
+  file_seek(file,pos);
+  sema_up(file_handle_lock);
 }
  
 static void syscall_tell(struct intr_frame* f)
@@ -313,7 +329,9 @@ static void syscall_tell(struct intr_frame* f)
   struct file* file=find_file_by_fd(fd,thread_current());
   int ret=-1;
   if(file){
-    ret=file->pos;
+    sema_down(file_handle_lock);
+    ret=file_tell(file);
+    sema_up(file_handle_lock);
   }
   f->eax=ret;
 }
@@ -325,8 +343,11 @@ static void syscall_close(struct intr_frame* f)
   struct file* file_struct= find_file_by_fd(fd,thread_current());
   
   if(file_struct){
+    sema_down(file_handle_lock);
+
     file_allow_write(file_struct);
     file_close(file_struct);
+    sema_up(file_handle_lock);
   }
 }
 

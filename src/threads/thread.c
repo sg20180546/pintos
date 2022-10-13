@@ -508,8 +508,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->recent_cpu=0;
   t->recalculated=false;
   sema_init(&t->child_sema,0);
-  // ASSERT(thread_current()!=t)
-  // t->parent=thread_current();
+
 #ifdef USERPROG
   t->exit_status=0;
   list_init(&t->ps_wait_list);
