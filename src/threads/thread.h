@@ -96,6 +96,8 @@ struct thread
     struct list_elem blocked_elem;
     struct thread* parent;
     struct semaphore child_sema;
+    struct semaphore exit_sema;
+    struct semaphore exit_sema2;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

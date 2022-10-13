@@ -56,6 +56,7 @@ bool is_open_file_executing(const char* file){
   return false;
 }
 static inline void exit(int status){
+  // printf("here? %d\n\n",status);
   thread_current()->exit_status=status;
   thread_exit();
 }
@@ -176,8 +177,9 @@ static void syscall_create(struct intr_frame* f)
   const char* file=*(++esp);
   unsigned initial_size=*(++esp);
 
-
+  sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
+  sema_up(file_handle_lock);
   // EXPECT_EQ(ret,false);
   // asm volatile
   // (
@@ -204,6 +206,7 @@ static void syscall_open(struct intr_frame* f)
 {  
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
+
   if(file==NULL){
     return;
   }
@@ -267,7 +270,9 @@ static void syscall_read(struct intr_frame* f)
   if(file_struct==NULL){
     exit(-1);
   }else{
+    sema_down(file_handle_lock);
     f->eax=file_read(file_struct,buffer,size);
+    sema_up(file_handle_lock);
   }
 }
 
