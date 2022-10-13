@@ -432,7 +432,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   sema_down(file_handle_lock);
   file = filesys_open (ELF_NAME);
-  sema_up(file_handle_lock);
+
   // if(is_open_file_executing(ELF_NAME)&&file==NULL){
   //   t->exit_status=12;
   //   goto done;
@@ -531,7 +531,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
-
+ file_close(file);
+  sema_up(file_handle_lock);
 
   /* We arrive here whether the load is successful or not. */
 
@@ -539,7 +540,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // if(file) {
   //   file_deny_write(file);
   // }
-  file_close (file);
+
   return success;
 }
 

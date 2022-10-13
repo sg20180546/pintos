@@ -258,9 +258,11 @@ static void syscall_read(struct intr_frame* f)
   if(fd==STDIN_FILENO){
     uint8_t ch;
     int i=0;
+    sema_down(file_handle_lock);
     while((ch=input_getc())!=-1 &&i<size ){
       buffer[i]=ch;
     }
+    sema_up(file_handle_lock);
     f->eax=i;
     return;
   }
