@@ -11,7 +11,7 @@
 #include "lib/string.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
-#define MAX_SYSCALL_NR 15
+#define MAX_SYSCALL_NR 17
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
@@ -93,12 +93,17 @@ static void syscall_max_of_four_int(struct intr_frame* f);
 
 static void syscall_fibonacci(struct intr_frame* f);
 
+static void syscall_mmap(struct intr_frame* f);
+
+static void syscall_munmap(struct intr_frame* f);
+
 struct syscall_handler_t syscall_handlers[]=
                       {{syscall_halt,"halt",0},{syscall_exit,"exit",1},{syscall_exec,"exec",1},
                         {syscall_wait,"wait",1},{syscall_create,"create",2},{syscall_remove,"remove",1},
                         {syscall_open,"open",1},{syscall_filesize,"filesize",1},{syscall_read,"read",1},
                         {syscall_write,"write",3},{syscall_seek,"seek",2},{syscall_tell,"tell",1},
-                        {syscall_close,"close",1},{syscall_max_of_four_int,"max_of_four_int",4},{syscall_fibonacci,"fibonacci",1}};
+                        {syscall_close,"close",1},{syscall_max_of_four_int,"max_of_four_int",4},
+                        {syscall_fibonacci,"fibonacci",1},{syscall_mmap,"mmap",2},{syscall_munmap,"munmap",1}};
 
 
 static inline bool is_valid_vaddr(uint32_t * esp){
@@ -388,4 +393,15 @@ static void syscall_fibonacci(struct intr_frame *f){
     ret=fibo(n);
   }
   f->eax=ret;
+}
+
+static void syscall_mmap(struct intr_frame* f){
+  uint32_t* esp=f->esp;
+  int fd=*(++esp);
+  void* addr=*(++esp);
+}
+
+static void syscall_munmap(struct intr_frame* f){
+  uint32_t* esp=f->esp;
+  // mappid_t
 }
