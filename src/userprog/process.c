@@ -290,6 +290,15 @@ process_exit (void)
   uint32_t *pd;
   struct list_elem* iter;
   struct thread* t_iter;
+  printf("%s: exit(%d)\n",cur->name,cur->exit_status);
+  // sema_down(&file_handle_lock);
+  if(cur->executing){
+    file_allow_write(cur->executing);
+    file_close(cur->executing);
+  }
+  // sema_up(&file_handle_lock);
+
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -307,7 +316,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  printf("%s: exit(%d)\n",cur->name,cur->exit_status);
+
+
+  // file_allow_write(cur->executing);
 
 
   sema_down(&cur->exit_sema);
@@ -320,7 +331,7 @@ process_exit (void)
       sema_up(&t_iter->exit_sema2);
     // }
   }
-
+  
 }
 
 /* Sets up the CPU for running user code in the current
@@ -445,7 +456,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
       goto done; 
     }else{
-      // t->running_file=file;
+
     }
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -529,9 +540,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  t->executing=file;
+  file_deny_write(file);
  done:
- file_close(file);
+
   sema_up(file_handle_lock);
 
   /* We arrive here whether the load is successful or not. */

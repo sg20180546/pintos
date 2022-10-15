@@ -110,6 +110,7 @@ struct thread
     struct list open_file_list;
     struct list free_fd_list;
     int cur_max_fd;
+    struct file* executing;
 #endif
 
     /* Owned by thread.c. */

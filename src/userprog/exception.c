@@ -178,7 +178,7 @@ page_fault (struct intr_frame *f)
 //   }
 
 
-  if(is_kernel_vaddr(fault_addr)||not_present)
+  if( (is_kernel_vaddr(fault_addr))||not_present)
   {
    thread_current()->exit_status=-1;
    thread_exit();
