@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "fixed_point.h"
 #include "synch.h"
+#include "lib/kernel/hash.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -93,7 +94,7 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    struct list_elem blocked_elem;
+   //  struct list_elem blocked_elem;
     struct thread* parent;
     struct semaphore child_sema;
     struct semaphore exit_sema;
@@ -123,6 +124,8 @@ struct thread
     int nice;
     fp_t recent_cpu;
     bool recalculated;
+
+    struct hash vm;
   };
 
 /* If false (default), use round-robin scheduler.
