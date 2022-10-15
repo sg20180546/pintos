@@ -74,9 +74,9 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       struct thread* cur=thread_current();
-      if(is_it_interior(&cur->elem)){
-        list_remove(&cur->elem);
-      }
+      // if(is_it_interior(&cur->elem)){
+      //   list_remove(&cur->elem);
+      // }
       list_push_front (&sema->waiters, &cur->elem);
       
       thread_block ();

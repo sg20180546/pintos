@@ -10,8 +10,8 @@
 #include "userprog/process.h"
 #include "lib/string.h"
 #include "devices/shutdown.h"
-
-#define MAX_SYSCALL_NR 13
+#include "devices/input.h"
+#define MAX_SYSCALL_NR 17
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
@@ -24,6 +24,9 @@ struct syscall_handler_t {
   char name[128]; // for debuging
   char argc;
 };
+
+
+struct semaphore* file_handle_lock;
 
 static struct file* find_file_by_fd(int fd,struct thread* cur) {
   struct list_elem* iter;
@@ -53,6 +56,7 @@ bool is_open_file_executing(const char* file){
   return false;
 }
 static inline void exit(int status){
+  // printf("here? %d\n\n",status);
   thread_current()->exit_status=status;
   thread_exit();
 }
@@ -85,12 +89,21 @@ static void syscall_tell(struct intr_frame* f);
 
 static void syscall_close(struct intr_frame* f);
 
+static void syscall_max_of_four_int(struct intr_frame* f);
+
+static void syscall_fibonacci(struct intr_frame* f);
+
+static void syscall_mmap(struct intr_frame* f);
+
+static void syscall_munmap(struct intr_frame* f);
+
 struct syscall_handler_t syscall_handlers[]=
                       {{syscall_halt,"halt",0},{syscall_exit,"exit",1},{syscall_exec,"exec",1},
                         {syscall_wait,"wait",1},{syscall_create,"create",2},{syscall_remove,"remove",1},
                         {syscall_open,"open",1},{syscall_filesize,"filesize",1},{syscall_read,"read",1},
                         {syscall_write,"write",3},{syscall_seek,"seek",2},{syscall_tell,"tell",1},
-                        {syscall_close,"close",1}};
+                        {syscall_close,"close",1},{syscall_max_of_four_int,"max_of_four_int",4},
+                        {syscall_fibonacci,"fibonacci",1},{syscall_mmap,"mmap",2},{syscall_munmap,"munmap",1}};
 
 
 static inline bool is_valid_vaddr(uint32_t * esp){
@@ -111,7 +124,8 @@ static inline bool is_valid_vaddr(uint32_t * esp){
 void
 syscall_init (void) 
 {
-  // printf("system call init\n\n");
+  file_handle_lock=malloc(sizeof *file_handle_lock);
+  sema_init(file_handle_lock,1);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -129,7 +143,7 @@ syscall_handler (struct intr_frame *f)
 
   uint32_t syscall_nr=*((uint32_t*)esp);
   struct syscall_handler_t* handler=&syscall_handlers[syscall_nr];
-  // printf("name : %s\n",handler->name);
+
   handler->func(f);
 }
 
@@ -147,7 +161,7 @@ static void syscall_exit(struct intr_frame* f)
 
 static void syscall_exec(struct intr_frame* f)
 { 
-  // printf("exec\n");
+
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
 
@@ -157,8 +171,8 @@ static void syscall_exec(struct intr_frame* f)
 static void syscall_wait(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
-  int fd=*(++esp);
-  f->eax=process_wait(fd);
+  int tid=*(++esp);
+  f->eax=process_wait(tid);
 }
 
 static void syscall_create(struct intr_frame* f)
@@ -168,8 +182,9 @@ static void syscall_create(struct intr_frame* f)
   const char* file=*(++esp);
   unsigned initial_size=*(++esp);
 
-
+  sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
+  sema_up(file_handle_lock);
   // EXPECT_EQ(ret,false);
   // asm volatile
   // (
@@ -187,21 +202,27 @@ static void syscall_remove(struct intr_frame* f)
 
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
-  
+  sema_down(file_handle_lock);
+  filesys_remove(file);
+  sema_up(file_handle_lock);
 }
 
 static void syscall_open(struct intr_frame* f)
 {  
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
+
   if(file==NULL){
     return;
   }
+  sema_down(file_handle_lock);
+
+
   struct file* file_struct=filesys_open(file);
   if(is_open_file_executing(file)){
     file_deny_write(file_struct);
   }
-
+  sema_up(file_handle_lock);
   if(file_struct==NULL){
     f->eax=-1;
   }else{
@@ -215,9 +236,11 @@ static void syscall_filesize(struct intr_frame* f)
   int fd=*(++esp);
   struct file* file_struct=find_file_by_fd(fd,thread_current());
   int ret=0;
+  sema_down(file_handle_lock);
   if(file_struct){
     ret=file_length(file_struct);
   }
+  sema_up(file_handle_lock);
   f->eax=ret;
 } 
 
@@ -225,16 +248,28 @@ static void syscall_read(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
   int fd=*(++esp);
-  void* buffer=*(++esp);
+  uint8_t* buffer=*(++esp);
   unsigned size=*(++esp);
   
 
   if(!is_user_vaddr(buffer) ){
     exit(-1);
   }
-
-  if(fd==STDOUT_FILENO||fd==STDIN_FILENO||fd<0){
+  
+  if(fd==STDOUT_FILENO||fd<0){
     exit(-1);
+  }
+
+  if(fd==STDIN_FILENO){
+    uint8_t ch;
+    int i=0;
+    sema_down(file_handle_lock);
+    while((ch=input_getc())!=-1 &&i<size ){
+      buffer[i]=ch;
+    }
+    sema_up(file_handle_lock);
+    f->eax=i;
+    return;
   }
 
   struct file* file_struct=find_file_by_fd(fd,thread_current());
@@ -242,7 +277,9 @@ static void syscall_read(struct intr_frame* f)
   if(file_struct==NULL){
     exit(-1);
   }else{
+    sema_down(file_handle_lock);
     f->eax=file_read(file_struct,buffer,size);
+    sema_up(file_handle_lock);
   }
 }
 
@@ -267,7 +304,9 @@ static void syscall_write(struct intr_frame* f)
       if(file->deny_write){
         ret=0;
       }else{
+        sema_down(file_handle_lock);
         ret=file_write(file,buffer,size);
+        sema_up(file_handle_lock);
       }
       // ret=file_write(file,buffer,size);
     }
@@ -290,13 +329,23 @@ static void syscall_seek(struct intr_frame* f)
   int fd=*(++esp);
   off_t pos=*(++esp);
   struct file* file=find_file_by_fd(fd,thread_current());
-  file->pos=pos;
+  sema_down(file_handle_lock);
+  file_seek(file,pos);
+  sema_up(file_handle_lock);
 }
  
 static void syscall_tell(struct intr_frame* f)
 {
   uint32_t* esp= f->esp;
-  esp++;
+  int fd=*(++esp);
+  struct file* file=find_file_by_fd(fd,thread_current());
+  int ret=-1;
+  if(file){
+    sema_down(file_handle_lock);
+    ret=file_tell(file);
+    sema_up(file_handle_lock);
+  }
+  f->eax=ret;
 }
 
 static void syscall_close(struct intr_frame* f)
@@ -306,7 +355,53 @@ static void syscall_close(struct intr_frame* f)
   struct file* file_struct= find_file_by_fd(fd,thread_current());
   
   if(file_struct){
+    sema_down(file_handle_lock);
+
     file_allow_write(file_struct);
     file_close(file_struct);
+    sema_up(file_handle_lock);
   }
+}
+
+static void syscall_max_of_four_int(struct intr_frame* f){
+  uint32_t* esp=f->esp;
+  int a=*(++esp);
+  int b=*(++esp);
+  int c=*(++esp);
+  int d=*(++esp);
+  int ret=max(a,b);
+  ret=max(ret,c);
+  ret=max(ret,d);
+
+  f->eax=ret;
+}
+
+static int fibo(int n){
+  if(n==1||n==0){
+    return n;
+  }
+  return fibo(n-1)+fibo(n-2);
+}
+
+static void syscall_fibonacci(struct intr_frame *f){
+  uint32_t* esp=f->esp;
+  int n=*(++esp);
+  int ret;
+  if(n<0){
+    ret=0;
+  }else{
+    ret=fibo(n);
+  }
+  f->eax=ret;
+}
+
+static void syscall_mmap(struct intr_frame* f){
+  uint32_t* esp=f->esp;
+  int fd=*(++esp);
+  void* addr=*(++esp);
+}
+
+static void syscall_munmap(struct intr_frame* f){
+  uint32_t* esp=f->esp;
+  // mappid_t
 }

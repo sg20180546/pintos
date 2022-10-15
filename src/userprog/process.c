@@ -29,6 +29,7 @@
                       
 
 struct list all_list;
+struct semaphore* file_handle_lock;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -156,7 +157,11 @@ static inline bool is_elf_file_exist(const char* name){
   if(is_open_file_executing(name)){
     return true;
   }
-  return lookup(dir_open_root(),name,NULL,NULL);
+  sema_down(file_handle_lock);
+  bool ret=lookup(dir_open_root(),name,NULL,NULL);
+  sema_up(file_handle_lock);
+
+  return ret;
 }
 tid_t
 process_execute (const char *file_name) 
@@ -183,9 +188,10 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
   // printf("exec 3\n");
-  enum intr_level level=intr_disable();
-  thread_block();
-  intr_set_level(level);
+  // enum intr_level level=intr_disable();
+  // thread_block();
+  // intr_set_level(level);
+  sema_down(&thread_current()->child_sema);
   if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
   }
@@ -215,7 +221,8 @@ start_process (void *file_name_)
   // ASSERT(thread_current()!=thread_current()->parent);
   // printf("after load\n");
   // ASSERT(success);
-  thread_unblock(thread_current()->parent);
+  sema_up(&thread_current()->parent->child_sema);
+  // thread_unblock(thread_current()->parent);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -251,26 +258,28 @@ start_process (void *file_name_)
 int
 process_wait (tid_t tid) 
 {   
-  // printf("process_Wait tid :%d\n",tid);
-  enum intr_level level=intr_disable();
-  // printf("process_Wait tid :%d\n",tid);
-  struct thread* waiting=find_thread_by_tid(tid,&all_list);
 
+  enum intr_level level=intr_disable();
+
+  struct thread* waiting=find_thread_by_tid(tid,&all_list);
+  int ret;
   
   if(!waiting||waiting->tid==TID_ERROR){
 
     return -1;
   }
-  // lock_acquire(waiting->ps_wait_lock);
+
   struct thread* cur= thread_current();
   
   list_push_back(&waiting->ps_wait_list,&cur->ps_wait_elem);
+  sema_up(&waiting->exit_sema);
 
-
-  thread_block();
+  
+  sema_down(&cur->exit_sema2);
+  ret=waiting->exit_status;
   intr_set_level(level);
-  // lock_release(waiting->ps_wait_lock);
-  return cur->waiting_exit_status;
+
+  return ret;
 }
 
 /* Free the current process's resources. */
@@ -281,24 +290,9 @@ process_exit (void)
   uint32_t *pd;
   struct list_elem* iter;
   struct thread* t_iter;
-  // struct list* ps_wait_list=&cur->ps_wait_lock->semaphore->waiters;
-  for(iter=list_begin(&cur->ps_wait_list);iter!=list_end(&cur->ps_wait_list);iter=list_next(iter)){
-    t_iter=list_entry(iter,struct thread,ps_wait_elem);
-    ASSERT(t_iter);
-    t_iter->waiting_exit_status=cur->exit_status;
-    if(t_iter->status==THREAD_BLOCKED){
-      thread_unblock(t_iter);
-    }
-  }
-  // for(iter=list_begin(ps_wait_list);iter!=list_end(ps_wait_list);iter=list_next(iter)){
-  //   t_iter=list_entry(iter,struct thread,elem);
-  //   ASSERT(t_iter);
-  //   t_iter->waiting_exit_status=cur->exit_status;
-  // }
-  // lock_release(&cur->ps_wait_lock);
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-      // printf("process exiting 2\n\n");
   pd = cur->pagedir;
   if (pd != NULL) 
     {
@@ -314,11 +308,19 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
-  // if(cur->running_file){
 
-    // file_allow_write(cur->running_file);
-    // file_close(cur->running_file);
-  // }
+
+  sema_down(&cur->exit_sema);
+  for(iter=list_begin(&cur->ps_wait_list);iter!=list_end(&cur->ps_wait_list);iter=list_next(iter)){
+    t_iter=list_entry(iter,struct thread,ps_wait_elem);
+
+    // t_iter->waiting_exit_status=cur->exit_status;
+    // if(t_iter->status==THREAD_BLOCKED){
+      // thread_unblock(t_iter);
+      sema_up(&t_iter->exit_sema2);
+    // }
+  }
+
 }
 
 /* Sets up the CPU for running user code in the current
@@ -428,8 +430,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   parse_elf_name(file_name,ELF_NAME);
   /* Open executable file. */
 
-
+  sema_down(file_handle_lock);
   file = filesys_open (ELF_NAME);
+
   // if(is_open_file_executing(ELF_NAME)&&file==NULL){
   //   t->exit_status=12;
   //   goto done;
@@ -528,7 +531,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
-
+ file_close(file);
+  sema_up(file_handle_lock);
 
   /* We arrive here whether the load is successful or not. */
 
@@ -536,7 +540,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // if(file) {
   //   file_deny_write(file);
   // }
-  file_close (file);
+
   return success;
 }
 
