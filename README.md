@@ -4,7 +4,9 @@
 ### 1) Alarm Clock
 
  <img src = "https://user-images.githubusercontent.com/81512075/186709398-5358a3f6-97f0-4d59-b4ce-08bb008c3270.png" width="700" height="270">
+ 
 ![image](https://user-images.githubusercontent.com/81512075/186709495-cb2404d7-e8d9-4ba3-8db9-5acf0da6b30d.png)
+
 - 1 tick = 10 ms = 0.01s
 - if timer_sleep, insert into `struct list sleep_list`
 - Each timer interrupt, test all elem in sleep list and get thread wake up.
