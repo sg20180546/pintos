@@ -70,18 +70,18 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
     {
       if (create)
         {
-          pt = palloc_get_page (PAL_ZERO);
+          pt = palloc_get_page (PAL_ZERO); // VIRTUAL ADDRESS
           if (pt == NULL) 
             return NULL; 
       
-          *pde = pde_create (pt);
+          *pde = pde_create (pt); // CONTENST OF PDE  (*PDE): PYSICAL ADDRESS
         }
       else
         return NULL;
     }
 
   /* Return the page table entry. */
-  pt = pde_get_pt (*pde);
+  pt = pde_get_pt (*pde); // PT : VIRTUAL ADDRESS
   return &pt[pt_no (vaddr)];
 }
 
@@ -94,10 +94,12 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
    If WRITABLE is true, the new page is read/write;
    otherwise it is read-only.
    Returns true if successful, false if memory allocation
-   failed. */
+   failed.
+   MAP KPAGE(VIRTUAL) TO UPAGE(VIRTUAL) */
 bool
-pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
+pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable) 
 {
+
   uint32_t *pte;
 
   ASSERT (pg_ofs (upage) == 0);

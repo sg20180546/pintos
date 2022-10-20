@@ -11,7 +11,13 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 
-/* Page allocator.  Hands out memory in page-size (or
+/* 
+  1MB : KERNEL POOL START, (1MB+END)/2 : USER POOL START
+     ---------- ---------------- ---------------- ----------------        -------------------
+    |  bitmap  |  PAGE 0 (4KB)  |  PAGE 1 (4KB)  |  PAGE 2 (4KB)  | .....| PAGE page_cnt(4KB)|
+     ---------- ---------------- ---------------- ----------------        -------------------
+
+   Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
    hands out smaller chunks.
 

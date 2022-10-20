@@ -175,7 +175,35 @@ thread_print_stats (void)
 
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
-   Priority scheduling is the goal of Problem 1-3. */
+   Priority scheduling is the goal of Problem 1-3. 
+   
+   STACK , kernel pool, 4KB
+    top(base+4KB)
+    ------------------------
+   | KERNEL THREAD FRAME    |
+   | void* eip              |
+   | void* function (void*) |
+   | void* aux              |
+    ------------------------
+   | SWITCH ENTRY FRAME     |
+   | void* eip              |
+    ------------------------
+   | SWITCH THREADS FRAME   |
+   | void* edi,esi,ebp,ebx  |
+   | void* eip(void*)       |
+   | struct thread* next    |
+   | struct thread* cur     |
+    ------------------------
+   |                        |
+   |                        |
+              .
+              .
+              .
+              .
+   |                        |
+    ------------------------
+   base    
+   */
 struct thread*
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 

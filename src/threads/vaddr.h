@@ -18,7 +18,7 @@
 #define PGSHIFT 0                          /* Index of first offset bit. */
 #define PGBITS  12                         /* Number of offset bits. */
 #define PGSIZE  (1 << PGBITS)              /* Bytes in a page. */
-#define PGMASK  BITMASK(PGSHIFT, PGBITS)   /* Page offset bits (0:12). */
+#define PGMASK  BITMASK(PGSHIFT, PGBITS)   /* Page offset bits (0:12). 1111 1111 11111 */ 
 
 /* Offset within a page. */
 static inline unsigned pg_ofs (const void *va) {
@@ -43,7 +43,7 @@ static inline void *pg_round_down (const void *va) {
 /* Base address of the 1:1 physical-to-virtual mapping.  Physical
    memory is mapped starting at this virtual address.  Thus,
    physical address 0 is accessible at PHYS_BASE, physical
-   address address 0x1234 at (uint8_t *) PFHYS_BASE + 0x1234, and
+   address address 0x1234 at (uint8_t *) PHYS_BASE + 0x1234, and
    so on.
 
    This address also marks the end of user programs' address

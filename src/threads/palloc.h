@@ -6,9 +6,9 @@
 /* How to allocate pages. */
 enum palloc_flags
   {
-    PAL_ASSERT = 001,           /* Panic on failure. */
-    PAL_ZERO = 002,             /* Zero page contents. */
-    PAL_USER = 004              /* User page. */
+    PAL_ASSERT = 001,           /* Panic on failure. 001*/
+    PAL_ZERO = 002,             /* Zero page contents. 010*/
+    PAL_USER = 004              /* User page. 100*/
   };
 
 void palloc_init (size_t user_page_limit);

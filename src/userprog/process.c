@@ -209,20 +209,16 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  // printf("start process\n");
-  // lock_init(&thread_current()->ps_wait_lock);
-  // lock_acquire(&thread_current()->ps_wait_lock);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  // ASSERT(thread_current()!=thread_current()->parent);
-  // printf("after load\n");
-  // ASSERT(success);
+
   sema_up(&thread_current()->parent->child_sema);
-  // thread_unblock(thread_current()->parent);
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -234,7 +230,7 @@ start_process (void *file_name_)
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
-  // printf("start process!!\n\n");
+
   
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
@@ -367,19 +363,19 @@ typedef uint16_t Elf32_Half;
    This appears at the very beginning of an ELF binary. */
 struct Elf32_Ehdr
   {
-    unsigned char e_ident[16];
-    Elf32_Half    e_type;
-    Elf32_Half    e_machine;
-    Elf32_Word    e_version;
-    Elf32_Addr    e_entry;
-    Elf32_Off     e_phoff;
-    Elf32_Off     e_shoff;
+    unsigned char e_ident[16]; // 16
+    Elf32_Half    e_type;      // 4
+    Elf32_Half    e_machine;   // 4
+    Elf32_Word    e_version;   // 8
+    Elf32_Addr    e_entry;     // 8
+    Elf32_Off     e_phoff;     // program header offset
+    Elf32_Off     e_shoff;     // section header offset
     Elf32_Word    e_flags;
     Elf32_Half    e_ehsize;
     Elf32_Half    e_phentsize;
     Elf32_Half    e_phnum;
     Elf32_Half    e_shentsize;
-    Elf32_Half    e_shnum;
+    Elf32_Half    e_shnum;      // # of section header
     Elf32_Half    e_shstrndx;
   };
 
@@ -434,7 +430,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
   char ELF_NAME[1024];
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
+  t->pagedir = pagedir_create (); // kernel space 4KB
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -444,10 +440,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   sema_down(file_handle_lock);
   file = filesys_open (ELF_NAME);
 
-  // if(is_open_file_executing(ELF_NAME)&&file==NULL){
-  //   t->exit_status=12;
-  //   goto done;
-  // }
 
   if (file == NULL) 
     {

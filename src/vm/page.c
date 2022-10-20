@@ -8,8 +8,13 @@ static unsigned vm_hash_func(const struct hash_elem* h_elem,void* aux){
     // return hash_int(vm_entry->vaddr);
 }
 
-static bool vm_less_func(const struct hash_elem* h_elem, const struct hash_elem* b, void* aux){
-
+static bool vm_less_func(const struct hash_elem* a, const struct hash_elem* b, void* aux){
+    struct vm_entry* va=hash_entry(a,struct vm_entry,h_elem);
+    struct vm_entry* vb=hash_entry(b,struct vm_entry,h_elem);
+    if(vb->vaddr>va->vaddr){
+        return true;
+    }
+    return false;
 }
 
 

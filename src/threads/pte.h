@@ -21,7 +21,7 @@
 #define	PTSHIFT PGBITS		           /* First page table bit. */
 #define PTBITS  10                         /* Number of page table bits. */
 #define PTSPAN  (1 << PTBITS << PGBITS)    /* Bytes covered by a page table. */
-#define PTMASK  BITMASK(PTSHIFT, PTBITS)   /* Page table bits (12:21). */
+#define PTMASK  BITMASK(PTSHIFT, PTBITS)   /* Page table bits (12:21). */ 
 
 /* Page directory index (bits 22:31). */
 #define PDSHIFT (PTSHIFT + PTBITS)         /* First page directory bit. */
