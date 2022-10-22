@@ -12,7 +12,7 @@
 #include "threads/vaddr.h"
 
 /* 
-  1MB : KERNEL POOL START, (1MB+END)/2 : USER POOL START
+  1MB : KERNEL POOL START, (1MB+END)/2 : USER POOL START (virtual) but direct mapped to physical
      ---------- ---------------- ---------------- ----------------        -------------------
     |  bitmap  |  PAGE 0 (4KB)  |  PAGE 1 (4KB)  |  PAGE 2 (4KB)  | .....| PAGE page_cnt(4KB)|
      ---------- ---------------- ---------------- ----------------        -------------------
@@ -52,15 +52,15 @@ void
 palloc_init (size_t user_page_limit)
 {
   /* Free memory starts at 1 MB and runs to the end of RAM. */
-  uint8_t *free_start = ptov (1024 * 1024);
-  uint8_t *free_end = ptov (init_ram_pages * PGSIZE);
-  size_t free_pages = (free_end - free_start) / PGSIZE;
-  size_t user_pages = free_pages / 2;
+  uint8_t *free_start = ptov (1024 * 1024); // PGSIZE*256
+  uint8_t *free_end = ptov (init_ram_pages * PGSIZE); // PGSIZE*992
+  size_t free_pages = (free_end - free_start) / PGSIZE; // 736
+  size_t user_pages = free_pages / 2; // 368
   size_t kernel_pages;
   if (user_pages > user_page_limit)
     user_pages = user_page_limit;
   kernel_pages = free_pages - user_pages;
-
+  // printf("kernel start point  :%p user pool start point %p, end point : : %p \n\n",free_start,free_start + kernel_pages * PGSIZE,free_start + free_pages * PGSIZE);
   /* Give half of memory to kernel, half to user. */
   init_pool (&kernel_pool, free_start, kernel_pages, "kernel pool");
   init_pool (&user_pool, free_start + kernel_pages * PGSIZE,
@@ -162,12 +162,12 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
   /* We'll put the pool's used_map at its base.
      Calculate the space needed for the bitmap
      and subtract it from the pool's size. */
-  size_t bm_pages = DIV_ROUND_UP (bitmap_buf_size (page_cnt), PGSIZE);
+  size_t bm_pages = DIV_ROUND_UP (bitmap_buf_size (page_cnt), PGSIZE); // 
   if (bm_pages > page_cnt)
     PANIC ("Not enough memory in %s for bitmap.", name);
-  page_cnt -= bm_pages;
+  page_cnt -= bm_pages; 
 
-  printf ("%zu pages available in %s.\n", page_cnt, name);
+  printf ("%zu pages available in %s.\n", page_cnt, name); // 367
 
   /* Initialize the pool. */
   lock_init (&p->lock);

@@ -112,8 +112,11 @@ static inline bool is_valid_vaddr(uint32_t * esp){
   if(*esp>MAX_SYSCALL_NR){
     return false;
   }
+  if(!is_user_vaddr(esp)){
+    return false;
+  }
   for(i=0;i<=syscall_handlers[*esp].argc;++i){
-    if(!is_user_vaddr(esp+i)){
+    if(!is_user_vaddr(*(esp+i))){
       return false;
     }
   }
@@ -143,7 +146,6 @@ syscall_handler (struct intr_frame *f)
 
   uint32_t syscall_nr=*((uint32_t*)esp);
   struct syscall_handler_t* handler=&syscall_handlers[syscall_nr];
-
   handler->func(f);
 }
 
@@ -185,16 +187,7 @@ static void syscall_create(struct intr_frame* f)
   sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
   sema_up(file_handle_lock);
-  // EXPECT_EQ(ret,false);
-  // asm volatile
-  // (
-  //   "movl %1, %%eax\n\t"
-  //   "movl %%eax, %0\n\t"
-  //   :"=m"(check)
-  //   :"m"(ret)
-  //   :"eax"
-  // );
-  // EXPECT_EQ(ret,check);
+  ASSERT(file_handle_lock->value==1);
 }
 
 static void syscall_remove(struct intr_frame* f)
@@ -356,7 +349,7 @@ static void syscall_close(struct intr_frame* f)
   
   if(file_struct){
     sema_down(file_handle_lock);
-
+    list_remove(&file_struct->elem);
     file_allow_write(file_struct);
     file_close(file_struct);
     sema_up(file_handle_lock);

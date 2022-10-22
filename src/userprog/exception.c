@@ -67,12 +67,12 @@ exception_init (void)
   intr_register_int (13, 0, INTR_ON, kill, "#GP General Protection Exception");
   intr_register_int (16, 0, INTR_ON, kill, "#MF x87 FPU Floating-Point Error");
   intr_register_int (19, 0, INTR_ON, kill,
-                     "#XF SIMD Floating-Point Exception");
+                     "#XF SIMD Floating-Point Exception"); //0x13
 
   /* Most exceptions can be handled with interrupts turned on.
      We need to disable interrupts for page faults because the
      fault address is stored in CR2 and needs to be preserved. */
-  intr_register_int (14, 0, INTR_OFF, page_fault, "#PF Page-Fault Exception");
+  intr_register_int (14, 0, INTR_OFF, page_fault, "#PF Page-Fault Exception"); // 0xe
 }
 
 /* Prints exception statistics. */
@@ -165,29 +165,15 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-//   if(!user||is_kernel_vaddr(fault_addr))
-//   {
-//    thread_current()->exit_status=-1;
-//    thread_exit();
-//    return;                                                
-//   }
-//   if(user&&not_present){
-//    thread_current()->exit_status=-1;
-//    thread_exit();
-//    return;     
-//   }
 
 
-  if( (is_kernel_vaddr(fault_addr))||not_present)
+
+  if( (user&&is_kernel_vaddr(fault_addr))||not_present)
   {
    thread_current()->exit_status=-1;
    thread_exit();
   }
-//   if(user&&not_present){
-//    thread_current()->exit_status=-1;
-//    thread_exit();
-//    return;     
-//   }
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

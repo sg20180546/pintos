@@ -287,12 +287,23 @@ process_exit (void)
   struct list_elem* iter;
   struct thread* t_iter;
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
-  // sema_down(&file_handle_lock);
+  // EXPECT_EQ(file_handle_lock->value,1);
+  // sema_down(file_handle_lock);
+  
   if(cur->executing){
-    file_allow_write(cur->executing);
-    file_close(cur->executing);
+
+    struct list* open_file_list=&cur->open_file_list;
+    struct file* f_iter;
+    if(!list_empty(open_file_list)){
+      for(iter=list_begin(open_file_list);iter!=list_end(open_file_list);){
+        f_iter=list_entry(iter,struct file,elem);
+        iter=list_remove(iter);
+        file_allow_write(f_iter);
+        file_close(f_iter);
+      }
+    } 
   }
-  // sema_up(&file_handle_lock);
+  // sema_up(file_handle_lock);
 
 
 
@@ -314,18 +325,12 @@ process_exit (void)
     }
 
 
-  // file_allow_write(cur->executing);
 
 
   sema_down(&cur->exit_sema);
   for(iter=list_begin(&cur->ps_wait_list);iter!=list_end(&cur->ps_wait_list);iter=list_next(iter)){
     t_iter=list_entry(iter,struct thread,ps_wait_elem);
-
-    // t_iter->waiting_exit_status=cur->exit_status;
-    // if(t_iter->status==THREAD_BLOCKED){
-      // thread_unblock(t_iter);
       sema_up(&t_iter->exit_sema2);
-    // }
   }
   
 }
@@ -642,6 +647,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
       /* Add the page to the process's address space. */
+      // printf("load semgment kpage : %p upage %p\n",kpage,upage);
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
@@ -665,6 +671,7 @@ setup_stack (void **esp)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  // printf("setup stack : kpage %p\n",kpage);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -689,7 +696,7 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
-
+  // printf(" install page : kpage %p upage %p , pagedir : %p\n",kpage,upage,vtop(t->pagedir));
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL

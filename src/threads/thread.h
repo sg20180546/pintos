@@ -101,7 +101,7 @@ struct thread
     struct semaphore exit_sema2;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+    uint32_t *pagedir;                  /* Page directory. virtual address, but direct map(pagedir-3GB==physcal address of pd)*/
     struct list ps_wait_list;
     struct list_elem ps_wait_elem;
 

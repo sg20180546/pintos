@@ -29,5 +29,6 @@ struct vm_entry
 void vm_init(struct hash* vm);
 bool insert_vme(struct hash* vm, struct vm_entry* vme);
 bool delete_vme(struct hash* vm, struct vm_entry* vme);
-
+struct vm_entry* find_vme(void* vaddr);
+void vm_destroy(struct hash* vm);
 #endif
