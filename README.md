@@ -57,14 +57,28 @@
 #### command
 0. set gcc older version
 `sudo update-alternatives --config gcc`
-1. threads
+
+1. pintos gdb
+shell1 )
+`src/userprog/build $ pintos --gdb -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/args-multiple -a args-multiple -- -q  -f run 'args-multiple some arguments for you!'`
+
+shell @)
+`src/userprog/build $ gdb kernel.o`
+`(gdb) target remote localhost:1234`
+`(gdb) continue`
+
+2. threads
 `pintos run alarm-multiple`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make tests/threads/alarm-multiple.result.`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make check`
-2. userprog
+3. userprog
 `pintos-mkdisk filesys.dsk --filesys-size=2`
 `pintos -f -q`
 `pintos -p ../../examples/echo -a echo -- -q`
 `pintos -q run 'echo x'`
 `pintos --filesys-size=2 –p ../../examples/echo –a echo -- -f –q run ‘echo x’`
+
+4. vm
+if there is new c file to compile, Makefile.build
+`vm_SRC = vm/page.c `
 

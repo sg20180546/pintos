@@ -20,6 +20,7 @@ fp_t load_avg;
 #endif
 
 #define PER_SECOND(tick) (tick%TIMER_FREQ==0) ? true : false
+#define PER_40MS(tick) ((ticks)%4==0)
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -99,9 +100,7 @@ timer_sleep (int64_t sleep_tick)
   
   enum intr_level level=intr_disable();
   t->tick=sleep_tick+timer_ticks();
-  // if(is_interior(&t->elem)){
-  //   list_remove(&t->elem);
-  // }
+
   list_push_back(&sleep_list,&t->elem);
   thread_block();
   intr_set_level(level);
@@ -228,7 +227,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       // mlfqs_recalculate_recent_cpu(t_iter);
     }
 
-    if(ticks%4==0){ // every 4 ticks
+    if(PER_40MS(ticks)){ // every 4 ticks
       mlfqs_recalculate_priority_in_sleep_list();
       mlfqs_rearrange_priority_ready_list();
       mlfqs_recalculate_priority(t_iter);

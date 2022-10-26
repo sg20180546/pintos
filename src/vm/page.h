@@ -2,6 +2,8 @@
 #define VM_PAGE_H
 #include "threads/thread.h"
 #include "lib/kernel/hash.h"
+#include "threads/palloc.h"
+#include "threads/vaddr.h"
 enum {
     VM_BIN, VM_FILE, VM_ANON
 };

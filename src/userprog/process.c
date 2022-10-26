@@ -20,7 +20,7 @@
 #include "threads/synch.h"
 #include "lib/kernel/list.h"
 #include "userprog/syscall.h"
-
+#include "vm/page.h"
 #define WORD_SIZE 4
 
 #define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
@@ -209,15 +209,16 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  struct thread* cur=thread_current();
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
+  vm_init(&cur->vm);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  sema_up(&thread_current()->parent->child_sema);
+  sema_up(&cur->parent->child_sema);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -633,6 +634,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+
+/////////////////////////////////////////////////////////////
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
@@ -647,12 +650,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
       /* Add the page to the process's address space. */
-      // printf("load semgment kpage : %p upage %p\n",kpage,upage);
+
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
+/////////////////////////////////////////////////////////////
 
       /* Advance. */
       read_bytes -= page_read_bytes;
