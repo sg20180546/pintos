@@ -79,6 +79,9 @@ shell @)
 `pintos --filesys-size=2 –p ../../examples/echo –a echo -- -f –q run ‘echo x’`
 
 4. vm
+src/userprog/Make.vars
+`KERNEL_SUBDIRS = threads devices lib lib/kernel userprog filesys vm`
 if there is new c file to compile, Makefile.build
 `vm_SRC = vm/page.c `
+
 

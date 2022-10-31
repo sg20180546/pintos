@@ -20,7 +20,9 @@
 #include "threads/synch.h"
 #include "lib/kernel/list.h"
 #include "userprog/syscall.h"
+#ifdef VM
 #include "vm/page.h"
+#endif
 #define WORD_SIZE 4
 
 #define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
@@ -166,9 +168,9 @@ static inline bool is_elf_file_exist(const char* name){
 tid_t
 process_execute (const char *file_name) 
 {
-  // printf("process executing\n\n");
+
   char *fn_copy;
-  // tid_t tid;
+
   struct thread* created;
   char ELF_NAME[1024];
 
@@ -179,18 +181,13 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  // printf("exec 1\n");
   parse_elf_name(file_name,ELF_NAME);
   if(!is_elf_file_exist(ELF_NAME)){
     return TID_ERROR;
   }
-  // printf("exec 2\n");
-  /* Create a new thread to execute FILE_NAME. */
+
   created = thread_create (ELF_NAME, PRI_DEFAULT, start_process, fn_copy);
-  // printf("exec 3\n");
-  // enum intr_level level=intr_disable();
-  // thread_block();
-  // intr_set_level(level);
+
   sema_down(&thread_current()->child_sema);
   if (created->tid == TID_ERROR){
     palloc_free_page (fn_copy); 
@@ -212,7 +209,10 @@ start_process (void *file_name_)
   struct thread* cur=thread_current();
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
+#ifdef VM
   vm_init(&cur->vm);
+
+#endif
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
@@ -246,11 +246,6 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-// int 
-// process_wait_tid(tid_t tid){
-//   // struct thread* t=find_thread_by_tid(tid);
-//   // return process_wait(t);
-// }
 
 int
 process_wait (tid_t tid) 
@@ -367,18 +362,41 @@ typedef uint16_t Elf32_Half;
 
 /* Executable header.  See [ELF1] 1-4 to 1-8.
    This appears at the very beginning of an ELF binary. */
+enum elf32_ehdr_e_type_t{
+  ET_NONE, // No file type
+  ET_REL, // Relocatable file
+  ET_EXEC, // Executable file
+  ET_DYN, // Shared object file
+  ET_CORE, // Core file
+  ET_LOPROC=0xff00, // Processor-specific
+  ET_HIPRIC=0xffff
+};
+
+enum elf32_ehdr_machine_t{
+  // 0 No Machine
+  EM_M32=1, // AT&T WE 32100
+  EM_SPARC, // SPARC
+  EM_386, // Intel Arch
+  EM_68K, // Motorola 68000
+  EM_88K, // Motorola 88000
+  EM_860=7, //Intel 80860
+  EM_MIPS, // MIPS RS3000 Big-Endian
+  EM_MIPS_RS4_BE=10, // MIPS RS4000 Big-Endian
+  // 10-16 RESERVED
+};
+
 struct Elf32_Ehdr
   {
-    unsigned char e_ident[16]; // 16
-    Elf32_Half    e_type;      // 4
-    Elf32_Half    e_machine;   // 4
-    Elf32_Word    e_version;   // 8
-    Elf32_Addr    e_entry;     // 8
+    unsigned char e_ident[16]; // 16 7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
+    Elf32_Half    e_type;      // 
+    Elf32_Half    e_machine;   // 
+    Elf32_Word    e_version;   // NONE or CURRENT
+    Elf32_Addr    e_entry;     // initial program counter,eip
     Elf32_Off     e_phoff;     // program header offset
     Elf32_Off     e_shoff;     // section header offset
     Elf32_Word    e_flags;
     Elf32_Half    e_ehsize;
-    Elf32_Half    e_phentsize;
+    Elf32_Half    e_phentsize; // program header size
     Elf32_Half    e_phnum;
     Elf32_Half    e_shentsize;
     Elf32_Half    e_shnum;      // # of section header
@@ -399,6 +417,28 @@ struct Elf32_Phdr
     Elf32_Word p_flags;
     Elf32_Word p_align;
   };
+
+struct Elf32_Shdr{
+  Elf32_Word sh_name;
+  Elf32_Word sh_type;
+  Elf32_Word sh_flags;
+  Elf32_Addr sh_addr;
+  Elf32_Off sh_offset;
+  Elf32_Word sh_size;
+  Elf32_Word sh_link;
+  Elf32_Word sh_info;
+  Elf32_Word sh_addralign;
+  Elf32_Word sh_entsize;
+};
+
+typedef struct {
+  Elf32_Word st_name;
+  Elf32_Addr st_value;
+  Elf32_Word st_size;
+  unsigned char st_info;
+  unsigned char st_other;
+  Elf32_Half st_shndx;
+} Elf32_Sym;
 
 /* Values for p_type.  See [ELF1] 2-3. */
 #define PT_NULL    0            /* Ignore. */
@@ -428,6 +468,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -459,8 +500,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
-      || ehdr.e_type != 2
-      || ehdr.e_machine != 3
+      || ehdr.e_type != ET_EXEC // Executable file flag
+      || ehdr.e_machine != EM_386 // Intel Architecture
       || ehdr.e_version != 1
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
@@ -503,6 +544,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
               uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
               uint32_t page_offset = phdr.p_vaddr & PGMASK;
               uint32_t read_bytes, zero_bytes;
+
+              // printf("%s:: offset %p\nvaddr %p\npaddr %p\nfilesz %p\nmemsz %p\n",file_name,phdr.p_offset,phdr.p_vaddr,phdr.p_paddr,phdr.p_filesz,phdr.p_memsz);
               if (phdr.p_filesz > 0)
                 {
                   /* Normal segment.
