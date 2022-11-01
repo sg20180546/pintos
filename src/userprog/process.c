@@ -283,8 +283,7 @@ process_exit (void)
   struct list_elem* iter;
   struct thread* t_iter;
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
-  // EXPECT_EQ(file_handle_lock->value,1);
-  // sema_down(file_handle_lock);
+
   
   if(cur->executing){
 
@@ -409,8 +408,8 @@ struct Elf32_Ehdr
 struct Elf32_Phdr
   {
     Elf32_Word p_type;
-    Elf32_Off  p_offset;
-    Elf32_Addr p_vaddr;
+    Elf32_Off  p_offset; // beginning of segment
+    Elf32_Addr p_vaddr; // where segment reside in memory
     Elf32_Addr p_paddr;
     Elf32_Word p_filesz;
     Elf32_Word p_memsz;
@@ -478,6 +477,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char ELF_NAME[1024];
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create (); // kernel space 4KB
+  // printf("pageddir : %p\n",t->pagedir);
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -512,6 +512,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
+  // printf("e_phnum : %d\n\n",ehdr.e_phnum);
   for (i = 0; i < ehdr.e_phnum; i++) 
     {
       struct Elf32_Phdr phdr;
@@ -667,15 +668,26 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
+  struct vm_entry* vme;
+  struct file* reopen_file=file_reopen(file);
 
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+      vme=malloc(sizeof *vme);
+      if(vme==NULL){
+        printf("vme malloc fail\n");
+        return false;
+      }
+
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+/////////////////////////////////////////////////////////////
+      // vme->file=
 
 
 /////////////////////////////////////////////////////////////
@@ -718,6 +730,7 @@ setup_stack (void **esp)
   bool success = false;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  // printf("set")
   // printf("setup stack : kpage %p\n",kpage);
   if (kpage != NULL) 
     {

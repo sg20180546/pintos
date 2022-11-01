@@ -50,6 +50,17 @@
  ![image](https://user-images.githubusercontent.com/81512075/196632021-a0b98f89-8ada-4335-a777-51bb73e38059.png)
 
 ## 3. VM
+### 1) Demand Paging
+- load_segment : map vm_entry -> file offset , not load file on phys
+- page_fault : load file by certain file offset at vm entry
+- Swapping by Clock Algorithm
+    - When vaddr Access : handle page fault and load(set PTE PRESENT), insert lru_list -> Hardware set PTE access bit(reference bit) to 1
+    - Replacement : traverse lru_list(circular, struct page) and check access bit 
+        -> if access bit==1 : set access bit 0; next;
+        -> if access bit==0 : evict page(pagedir_clear_page); load file to kaddr; map page(install_page);
+### 2) Stack Growing
+
+### 3) Memory Mapping files
 
 ## 4. File System
 

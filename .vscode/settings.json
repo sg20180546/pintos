@@ -23,6 +23,8 @@
         "lib.h": "c",
         "stdlib.h": "c",
         "input.h": "c",
-        "pagedir.h": "c"
+        "pagedir.h": "c",
+        "off_t.h": "c",
+        "page.h": "c"
     }
 }

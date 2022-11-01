@@ -70,7 +70,7 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
     {
       if (create)
         {
-          pt = palloc_get_page (PAL_ZERO); // VIRTUAL ADDRESS
+          pt = palloc_get_page (PAL_ZERO); // LOGICAL ADDRESS OF PYHSICAL ADDRESS
           if (pt == NULL) 
             return NULL; 
       
@@ -81,7 +81,7 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
     }
 
   /* Return the page table entry. */
-  pt = pde_get_pt (*pde); // PT : VIRTUAL ADDRESS
+  pt = pde_get_pt (*pde); // PT : LOGICAL ADDR OF PHYS ADDR
   return &pt[pt_no (vaddr)];
 }
 
