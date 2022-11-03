@@ -25,7 +25,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 // static struct list ready_list;
-static struct list priority_ready_list[PRI_MAX+1];
+struct list priority_ready_list[PRI_MAX+1];
 
 
 /* List of all processes.  Processes are added to this list

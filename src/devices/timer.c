@@ -35,7 +35,7 @@ static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
 struct list sleep_list;
-
+struct list priority_ready_list[PRI_MAX+1];
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -178,15 +178,20 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
-static void mlfqs_recalculate_priority_in_sleep_list(void){
+static void mlfqs_recalculate_priority_in_all_list(void){
   struct thread* t_iter;
   struct list_elem* iter;
-  for(iter=list_begin(&sleep_list);iter!=list_end(&sleep_list);iter=list_next(iter)) {
-    t_iter =list_entry(iter,struct thread, elem);
+  for(iter=list_begin(&all_list);iter!=list_end(&all_list);iter=list_next(iter)) {
+    t_iter =list_entry(iter,struct thread, allelem);
+    int before_pri=t_iter->priority;
     mlfqs_recalculate_priority(t_iter);
+    if(t_iter->status==THREAD_READY && t_iter->priority!=before_pri){
+      list_remove(&t_iter->elem);
+      list_push_back(&priority_ready_list[t_iter->priority],&t_iter->elem);
+      
+    }
   }
 }
-
 static void mlfqs_recalculate_recent_cpu_in_all_list(void){
   struct list_elem* iter;
   struct thread* t_iter;
@@ -223,14 +228,11 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if(PER_SECOND(ticks)) { // every second
       mlfqs_recalculate_load_avg();
       mlfqs_recalculate_recent_cpu_in_all_list();
-      // mlfqs_recalculate_recent_cpu_in_priority_ready_list();
-      // mlfqs_recalculate_recent_cpu(t_iter);
     }
 
     if(PER_40MS(ticks)){ // every 4 ticks
-      mlfqs_recalculate_priority_in_sleep_list();
-      mlfqs_rearrange_priority_ready_list();
-      mlfqs_recalculate_priority(t_iter);
+      mlfqs_recalculate_priority_in_all_list();
+
       if(!is_cur_priority_max()) {
           intr_yield_on_return();
       }
