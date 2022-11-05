@@ -31,6 +31,7 @@
                       
 
 struct list all_list;
+struct list lru_list;
 struct semaphore* file_handle_lock;
 
 static thread_func start_process NO_RETURN;
@@ -211,7 +212,7 @@ start_process (void *file_name_)
   memset (&if_, 0, sizeof if_);
 #ifdef VM
   vm_init(&cur->vm);
-
+  list_init(&cur->kpage_list);
 #endif
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
@@ -282,6 +283,7 @@ process_exit (void)
   uint32_t *pd;
   struct list_elem* iter;
   struct thread* t_iter;
+  struct kpage_t* kp_iter;
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
 
   
@@ -298,9 +300,24 @@ process_exit (void)
       }
     } 
   }
-  // sema_up(file_handle_lock);
+  // for(iter=list_begin(&lru_list);iter!=list_end(&lru_list);){
+  //   kp_iter=list_entry(iter,struct kpage,lru_elem);
+  //   if(kp_iter->thread==cur){
+  //     iter=list_remove(iter);
+  //     free(p_iter);
+  //   }else{
+  //     iter=list_next(iter);
+  //   }
+  // }
 
 
+  for(iter=list_begin(&cur->kpage_list);iter!=list_end(&cur->kpage_list);) {
+    kp_iter=list_entry(iter,struct kpage_t,elem);
+    list_remove(&kp_iter->lru_elem);
+    iter=list_remove(iter);
+    free(kp_iter);
+  }
+  vm_destroy(&cur->vm);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -665,6 +682,7 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
+  struct thread* t=thread_current();
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
@@ -676,7 +694,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     {
       vme=malloc(sizeof *vme);
       if(vme==NULL){
-        printf("vme malloc fail\n");
+        // printf("vme malloc fail\n");
         return false;
       }
 
@@ -687,30 +705,38 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 /////////////////////////////////////////////////////////////
-      // vme->file=
-
+      vme->file=reopen_file;
+      vme->read_bytes=read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      vme->zero_bytes=PGSIZE - page_read_bytes;
+      vme->offset=ofs;
+      vme->vaddr=upage;
+      vme->loaded_on_phys=false;
+      vme->writable=writable;
+      vme->type=VM_BIN;
+      ofs+=PGSIZE;
+      insert_vme(&t->vm,vme);
 
 /////////////////////////////////////////////////////////////
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      // uint8_t *kpage = palloc_get_page (PAL_USER);
+      // if (kpage == NULL)
+      //   return false;
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      // /* Load this page. */
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
+      // /* Add the page to the process's address space. */
 
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
 /////////////////////////////////////////////////////////////
 
       /* Advance. */
@@ -761,4 +787,46 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+void handle_mm_fault(void* uaddr){
+  struct thread* cur=thread_current();
+   struct vm_entry* vme=find_vme(uaddr);
+   if(vme==NULL){
+      goto error;
+   }
+   if(vme->loaded_on_phys){
+    return;
+   }
+
+   uint8_t *kpage=palloc_get_page(PAL_USER);
+   if(kpage==NULL){
+      goto error;
+   }
+   file_seek(vme->file,vme->offset);
+   if(file_read(vme->file,kpage,vme->read_bytes)!=(int)vme->read_bytes){
+      goto error;
+   }
+   memset(kpage+vme->read_bytes,0,vme->zero_bytes);
+
+   if(!install_page(uaddr,kpage,vme->writable)){
+      palloc_free_page(kpage);
+      goto error;
+   }
+
+   struct kpage_t* page=malloc(sizeof* page);
+   if(page==NULL){
+    palloc_free_page(kpage);
+    goto error;
+   }
+   vme->loaded_on_phys=true;
+   page->vme=vme;
+   page->kaddr=kpage;
+   page->thread=cur;
+   list_push_back(&lru_list,&page->lru_elem);
+   list_push_back(&cur->kpage_list,&page->elem);
+   return;
+error:
+   thread_current()->exit_status=-1;
+   thread_exit();
 }

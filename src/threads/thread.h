@@ -127,6 +127,7 @@ struct thread
     bool recalculated;
 
     struct hash vm;
+    struct list kpage_list;
   };
 
 /* If false (default), use round-robin scheduler.

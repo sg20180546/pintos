@@ -1,10 +1,10 @@
 #include "page.h"
 
-static unsigned vm_hash_func(const struct hash_elem* h_elem,void* aux UNUSED){
-    struct vm_entry* vm_entry=hash_entry(h_elem,struct vm_entry,h_elem);
+struct hash lru_list;
 
-    // remove offset, use threads/pte.h
-    // uint32_t VPN=vm_entry&
+static unsigned vm_hash_func(const struct hash_elem* helem,void* aux UNUSED){
+    struct vm_entry* vm_entry=hash_entry(helem,struct vm_entry,h_elem);
+
     return hash_int(pg_round_down(vm_entry->vaddr));
 }
 
@@ -23,10 +23,10 @@ void vm_init(struct hash* vm){
 }
 
 
-void insert_vme(struct hash* vm, struct vm_entry* vme){
+inline void insert_vme(struct hash* vm, struct vm_entry* vme){
     hash_insert(vm,&vme->h_elem);
 }
-void delete_vme(struct hash* vm, struct vm_entry* vme){
+inline void delete_vme(struct hash* vm, struct vm_entry* vme){
     hash_delete(vm,&vme->h_elem);
 }
 
@@ -41,10 +41,38 @@ struct vm_entry* find_vme(void* vaddr){
 static void destroy_vme(struct hash_elem *e, void *aux UNUSED){
 
     struct vm_entry* vme=hash_entry(e,struct vm_entry,h_elem);
-    palloc_free_page(vme->vaddr);
-    // free(vme);
+    free(vme);
 }
 
 void vm_destroy(struct hash* vm){
     hash_destroy(vm,destroy_vme);
 }
+
+
+
+
+// static unsigned kpage_t_hash_func(const struct hash_elem* helem,void* aux UNUSED){
+//     struct kpage_t* kpage=hash_entry(helem,struct kpage_t,h_elem);
+//     return hash_int(kpage->kaddr);
+// }
+
+// static bool kpage_t_less_func(const struct hash_elem* a, const struct hash_elem* b, void* aux UNUSED){
+//     struct kpage_t* ka=hash_entry(a,struct kpage_t,h_elem);
+//     struct kpage_t* kb=hash_entry(b,struct kpage_t,h_elem);
+//     if(kb->kaddr>ka->kaddr){
+//         return true;
+//     }
+//     return false;
+// }
+
+// void lru_init(struct hash* lru){
+//     hash_init(lru,kpage_t_hash_func,kpage_t_less_func,NULL);
+// }
+
+// inline void insert_kpage(struct kpage* kpage){
+//     hash_insert(&lru_list,&kpage->h_elem);
+// }
+
+// inline void delete_kpage(struct kpage_t*kpage){
+
+// }

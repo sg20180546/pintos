@@ -5,7 +5,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
+#include "threads/palloc.h"
+#include "filesys/file.h"
 // #include "lib/user/syscall.h"
 #include "syscall.h"
 
@@ -135,6 +136,8 @@ kill (struct intr_frame *f)
    can find more information about both of these in the
    description of "Interrupt 14--Page Fault Exception (#PF)" in
    [IA32-v3a] section 5.15 "Exception and Interrupt Reference". */
+
+
 static void
 page_fault (struct intr_frame *f) 
 {
@@ -166,9 +169,12 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
 
+  if(not_present||user&&is_user_vaddr(fault_addr)){
+      handle_mm_fault(pg_round_down(fault_addr));
+      return;
+  }
 
-
-  if( (user&&is_kernel_vaddr(fault_addr))||not_present)
+  if(user&&is_kernel_vaddr(fault_addr) ) // user access to kernel addr : error
   {
    thread_current()->exit_status=-1;
    thread_exit();

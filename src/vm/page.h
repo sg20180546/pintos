@@ -4,35 +4,40 @@
 #include "lib/kernel/hash.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "filesys/off_t.h"
+// typedef int32_t off_t;
 enum {
     VM_BIN, VM_FILE, VM_ANON
 };
 
 struct vm_entry
 {
+    struct hash_elem h_elem;
+    
     uint8_t type;
     void* vaddr;
-    bool read_only;
+    bool writable;
 
     bool loaded_on_phys;
     struct file* file;
 
     struct list_elem mmap_elem;
 
-    size_t offset;
+    off_t offset;
     size_t read_bytes;
     size_t zero_bytes;
 
     size_t swap_slot;
 
-    struct hash_elem h_elem;
+
 };
 
-struct page{
+struct kpage_t{
     void* kaddr; // physcial
     struct vm_entry* vme;
     struct thread* thread;
-    struct list_elem lru;
+    struct list_elem lru_elem;
+    struct list_elem elem;
 };
 
 struct mmap_file{
@@ -43,8 +48,11 @@ struct mmap_file{
 };
 
 void vm_init(struct hash* vm);
-void insert_vme(struct hash* vm, struct vm_entry* vme);
-void delete_vme(struct hash* vm, struct vm_entry* vme);
+inline void insert_vme(struct hash* vm, struct vm_entry* vme);
+inline void delete_vme(struct hash* vm, struct vm_entry* vme);
 struct vm_entry* find_vme(void* vaddr);
 void vm_destroy(struct hash* vm);
+
+
+
 #endif

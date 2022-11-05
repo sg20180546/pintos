@@ -156,9 +156,11 @@ bss_init (void)
    kernel virtual mapping, and then sets up the CPU to use the
    new page directory.  Points init_page_dir to the page
    directory it creates. */
+struct list lru_list;
 static void
 paging_init (void)
 {
+  list_init(&lru_list);
   uint32_t *pd, *pt;
   size_t page;
   extern char _start, _end_kernel_text;

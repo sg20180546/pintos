@@ -25,6 +25,8 @@
         "input.h": "c",
         "pagedir.h": "c",
         "off_t.h": "c",
-        "page.h": "c"
+        "page.h": "c",
+        "file.h": "c",
+        "switch.h": "c"
     }
 }
