@@ -183,7 +183,7 @@ static void syscall_create(struct intr_frame* f)
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
   unsigned initial_size=*(++esp);
-
+  
   sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
   sema_up(file_handle_lock);

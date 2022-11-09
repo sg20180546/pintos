@@ -22,6 +22,7 @@
 #include "userprog/syscall.h"
 #ifdef VM
 #include "vm/page.h"
+#include "threads/pte.h"
 #endif
 #define WORD_SIZE 4
 
@@ -286,7 +287,7 @@ process_exit (void)
   struct kpage_t* kp_iter;
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
 
-  
+  // sema_down(file_handle_lock);
   if(cur->executing){
 
     struct list* open_file_list=&cur->open_file_list;
@@ -299,7 +300,16 @@ process_exit (void)
         file_close(f_iter);
       }
     } 
+    struct list* free_fd_list=&cur->free_fd_list;
+    struct free_fd_elem* ff_iter;
+    for(iter=list_begin(free_fd_list);iter!=list_end(free_fd_list);){
+      ff_iter=list_entry(iter,struct free_fd_elem,elem);
+      iter=list_remove(iter);
+      free(ff_iter);
+    }
   }
+  
+  // sema_up(file_handle_lock);
   // for(iter=list_begin(&lru_list);iter!=list_end(&lru_list);){
   //   kp_iter=list_entry(iter,struct kpage,lru_elem);
   //   if(kp_iter->thread==cur){
@@ -789,10 +799,41 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
+static void* demand_paging(void){
+  struct list_elem* iter;
+  struct kpage_t* kp_iter;
+  void* kaddr;
+  void* vaddr;
+  uint32_t * pte;
+  while(1){
+    for(iter=list_begin(&lru_list);iter!=list_end(iter);iter=list_next(iter)){
+      kp_iter=list_entry(iter,struct kpage_t,lru_elem);
+      kaddr=kp_iter->kaddr;
+      vaddr=kp_iter->vme->vaddr;
+      pte=lookup_page(kp_iter->thread->pagedir,vaddr,false);
+      ASSERT(pte!=NULL);
+      if(*pte&PTE_A){
+        *pte&=~PTE_A;
+        continue;
+      }
+
+      list_remove(&kp_iter->elem);
+      list_remove(&kp_iter->lru_elem);
+      pagedir_clear_page(kp_iter->thread->pagedir,vaddr);
+      kp_iter->vme->loaded_on_phys=false;
+
+      free(kp_iter);
+      return kaddr;
+    }
+  }
+}
+
 void handle_mm_fault(void* uaddr){
   struct thread* cur=thread_current();
    struct vm_entry* vme=find_vme(uaddr);
    if(vme==NULL){
+      // check is stack?
+
       goto error;
    }
    if(vme->loaded_on_phys){
@@ -801,7 +842,8 @@ void handle_mm_fault(void* uaddr){
 
    uint8_t *kpage=palloc_get_page(PAL_USER);
    if(kpage==NULL){
-      goto error;
+      kpage=demand_paging();
+      // lru demand paging;
    }
    file_seek(vme->file,vme->offset);
    if(file_read(vme->file,kpage,vme->read_bytes)!=(int)vme->read_bytes){
