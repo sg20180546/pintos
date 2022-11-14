@@ -27,6 +27,10 @@
         "off_t.h": "c",
         "page.h": "c",
         "file.h": "c",
-        "switch.h": "c"
+        "switch.h": "c",
+        "flags.h": "c",
+        "block.h": "c",
+        "hash.h": "c",
+        "bitmap.h": "c"
     }
 }

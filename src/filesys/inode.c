@@ -70,7 +70,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length) //0 ,512
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -84,11 +84,12 @@ inode_create (block_sector_t sector, off_t length)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
-      size_t sectors = bytes_to_sectors (length);
+      size_t sectors = bytes_to_sectors (length); // # of sector
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
+      if (free_map_allocate (sectors, &disk_inode->start)) // sector start position
         {
+          // printf("hello length %d sectors %d, inoe start sector %d\n\n",length,sectors,disk_inode->start);
           block_write (fs_device, sector, disk_inode);
           if (sectors > 0) 
             {

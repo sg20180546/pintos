@@ -54,13 +54,18 @@
 - load_segment : map vm_entry -> file offset , not load file on phys
 - page_fault : load file by certain file offset at vm entry
 - Swapping by Clock Algorithm
-    - When vaddr Access : handle page fault and load(set PTE PRESENT), insert lru_list -> Hardware set PTE access bit(reference bit) to 1
+    - IA32 3.7.6 : ACCESS,PRESENT / set by HARDWARE, clear by SOFTWARE(OS)
+    - When vaddr Access : handle page fault and load(set PTE PRESENT by HARDWARE), insert lru_list -> Hardware set PTE access bit(reference bit) to 1
     - Replacement : traverse lru_list(circular, struct page) and check access bit 
         -> if access bit==1 : set access bit 0; next;
         -> if access bit==0 : evict page(pagedir_clear_page); load file to kaddr; map page(install_page);
 ### 2) Stack Growing
 
-### 3) Memory Mapping files
+### 3) Swap Partition
+`pintos-mkdisk swap.dsk --swap-size=4`
+- IA32 3.7.6 : DIRTY set by HARDWARE, clear by SOFTWARE
+
+### 4) Memory Mapping files
 
 ## 4. File System
 

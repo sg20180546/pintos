@@ -23,9 +23,9 @@ void vm_init(struct hash* vm){
 }
 
 
-inline void insert_vme(struct hash* vm, struct vm_entry* vme){
-    hash_insert(vm,&vme->h_elem);
-}
+// inline void insert_vme(struct hash* vm, struct vm_entry* vme){
+//     hash_insert(vm,&vme->h_elem);
+// }
 inline void delete_vme(struct hash* vm, struct vm_entry* vme){
     hash_delete(vm,&vme->h_elem);
 }
@@ -45,6 +45,11 @@ static void destroy_vme(struct hash_elem *e, void *aux UNUSED){
 }
 
 void vm_destroy(struct hash* vm){
+    // struct hash_iterator h_iter;
+    // hash_first(&h_iter,vm);
+
+    // struct file* file=list_entry(&h_iter.elem->list_elem,struct file,elem);
+    // file_close(file);
     hash_destroy(vm,destroy_vme);
 }
 

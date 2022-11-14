@@ -5,6 +5,7 @@
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 #include "filesys/off_t.h"
+#include "filesys/file.h"
 // typedef int32_t off_t;
 enum {
     VM_BIN, VM_FILE, VM_ANON
@@ -27,9 +28,7 @@ struct vm_entry
     size_t read_bytes;
     size_t zero_bytes;
 
-    size_t swap_slot;
-
-
+    block_sector_t swap_sector;
 };
 
 struct kpage_t{
@@ -48,7 +47,9 @@ struct mmap_file{
 };
 
 void vm_init(struct hash* vm);
-inline void insert_vme(struct hash* vm, struct vm_entry* vme);
+inline void insert_vme(struct hash* vm, struct vm_entry* vme){
+    hash_insert(vm,&vme->h_elem);
+}
 inline void delete_vme(struct hash* vm, struct vm_entry* vme);
 struct vm_entry* find_vme(void* vaddr);
 void vm_destroy(struct hash* vm);

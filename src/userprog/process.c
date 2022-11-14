@@ -23,6 +23,7 @@
 #ifdef VM
 #include "vm/page.h"
 #include "threads/pte.h"
+#include "vm/swap.h"
 #endif
 #define WORD_SIZE 4
 
@@ -817,6 +818,13 @@ static void* demand_paging(void){
         continue;
       }
 
+      if(*pte&PTE_D){
+          *pte&=~PTE_D; // clear DIRTY BIT
+          kp_iter->vme->type=VM_ANON; // type is now anon
+          // evict to swap disk
+          swap_in(kp_iter);
+      }
+
       list_remove(&kp_iter->elem);
       list_remove(&kp_iter->lru_elem);
       pagedir_clear_page(kp_iter->thread->pagedir,vaddr);
@@ -832,8 +840,11 @@ void handle_mm_fault(void* uaddr){
   struct thread* cur=thread_current();
    struct vm_entry* vme=find_vme(uaddr);
    if(vme==NULL){
-      // check is stack?
-
+      /*
+        IF STACK
+          ALLOCATE NEW
+        ELSE GOTO ERROR
+      */
       goto error;
    }
    if(vme->loaded_on_phys){
@@ -843,24 +854,42 @@ void handle_mm_fault(void* uaddr){
    uint8_t *kpage=palloc_get_page(PAL_USER);
    if(kpage==NULL){
       kpage=demand_paging();
-      // lru demand paging;
    }
-   file_seek(vme->file,vme->offset);
-   if(file_read(vme->file,kpage,vme->read_bytes)!=(int)vme->read_bytes){
-      goto error;
-   }
-   memset(kpage+vme->read_bytes,0,vme->zero_bytes);
+  struct kpage_t* page=malloc(sizeof* page);
+  if(page==NULL){
+    palloc_free_page(kpage);
+    goto error;
+  }
+   page->vme=vme;
+   page->kaddr=kpage;
+
+    switch (vme->type)
+    {
+    case VM_BIN:
+      // read from file
+      file_seek(vme->file,vme->offset);
+      if(file_read(vme->file,kpage,vme->read_bytes)!=(int)vme->read_bytes){
+          goto error;
+      }
+      memset(kpage+vme->read_bytes,0,vme->zero_bytes);
+      break;
+    case VM_ANON:
+      // read from swap
+      swap_out(page);
+      break;
+    case VM_FILE:
+      break;
+    default:
+      break;
+    }
+
+
 
    if(!install_page(uaddr,kpage,vme->writable)){
       palloc_free_page(kpage);
       goto error;
    }
 
-   struct kpage_t* page=malloc(sizeof* page);
-   if(page==NULL){
-    palloc_free_page(kpage);
-    goto error;
-   }
    vme->loaded_on_phys=true;
    page->vme=vme;
    page->kaddr=kpage;

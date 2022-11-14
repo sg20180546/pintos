@@ -60,7 +60,7 @@ read_partition_table (struct block *block, block_sector_t sector,
       uint8_t end_chs[3];       /* Encoded ending cylinder, head, sector. */
       uint32_t offset;          /* Start sector offset from partition table. */
       uint32_t size;            /* Number of sectors. */
-    }
+    } //size == 16 byte
   PACKED;
 
   /* Partition table sector. */
@@ -69,12 +69,12 @@ read_partition_table (struct block *block, block_sector_t sector,
       uint8_t loader[446];      /* Loader, in top-level partition table. */
       struct partition_table_entry partitions[4];       /* Table entries. */
       uint16_t signature;       /* Should be 0xaa55. */
-    }
+    } // size == 512 byte
   PACKED;
 
   struct partition_table *pt;
   size_t i;
-
+  
   /* Check SECTOR validity. */
   if (sector >= block_size (block))
     {
