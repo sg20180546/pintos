@@ -113,6 +113,7 @@ struct thread
     struct list free_fd_list;
     int cur_max_fd;
     struct file* executing;
+    uint8_t user_stack;
 #endif
 
     /* Owned by thread.c. */

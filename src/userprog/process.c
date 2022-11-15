@@ -20,13 +20,14 @@
 #include "threads/synch.h"
 #include "lib/kernel/list.h"
 #include "userprog/syscall.h"
+
 #ifdef VM
 #include "vm/page.h"
 #include "threads/pte.h"
 #include "vm/swap.h"
 #endif
 #define WORD_SIZE 4
-
+#define ULIMIT 1<<23
 #define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
                               **esp=(type)src;\
                                 }
@@ -38,7 +39,7 @@ struct semaphore* file_handle_lock;
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-
+static bool expand_stack();
 static inline void parse_elf_name(const char* src,char* dst) {
   size_t i;
   size_t len=strlen(src);
@@ -325,6 +326,10 @@ process_exit (void)
   for(iter=list_begin(&cur->kpage_list);iter!=list_end(&cur->kpage_list);) {
     kp_iter=list_entry(iter,struct kpage_t,elem);
     list_remove(&kp_iter->lru_elem);
+    if(kp_iter->vme->type==VM_ANON){
+      swap_deallocate(kp_iter);
+      
+    }
     iter=list_remove(iter);
     free(kp_iter);
   }
@@ -763,20 +768,25 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
+  // uint8_t *kpage;
   bool success = false;
-
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  // struct vm_entry* vme;
+  // struct kpage_t* page;
+  // struct thread* t=thread_current();
+  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   // printf("set")
-  // printf("setup stack : kpage %p\n",kpage);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
-    }
+  // void* upage=((uint8_t *) PHYS_BASE) - PGSIZE;
+  // printf("setup stack : upage %p, %p\n",upage,pg_round_down(upage));
+  // if (kpage != NULL) 
+  //   {
+      // success = install_page (upage, kpage, true);
+  success=expand_stack();
+  if (success){
+    *esp = PHYS_BASE;
+  }
+      // else
+      //   palloc_free_page (kpage);
+    // }
   return success;
 }
 
@@ -836,26 +846,90 @@ static void* demand_paging(void){
   }
 }
 
-void handle_mm_fault(void* uaddr){
+static inline bool is_stack_boundary(struct intr_frame* f,void* uaddr){
+  // uaddr=PHYS_BASE-uaddr;
+  // printf("uaddr : %p\n",uaddr);
+  // int pos=(uint32_t)uaddr/PGSIZE;
+  if(f->esp-32<=uaddr){
+    // printf("is starckboudnary!!\n\n");
+    return true;
+  }
+  // printf("not stack boundar !! %p\n\n",uaddr);
+  return false;
+}
+
+static bool expand_stack(){
+  struct vm_entry* vme;
+  struct kpage_t* page;
   struct thread* cur=thread_current();
+  void* upage;
+  uint8_t *kpage;
+  vme=malloc(sizeof* vme);
+  if(vme==NULL){
+    return false;
+  }
+  page=malloc(sizeof* page);
+  if(page==NULL){
+    return false;
+  }
+  vme->type=VM_ANON;
+  vme->writable;
+  vme->loaded_on_phys=true;
+  vme->swap_sector=-1;
+  page->vme=vme;
+  page->thread=cur;
+  kpage=palloc_get_page(PAL_USER);
+  if(kpage==NULL){
+       kpage=demand_paging();
+  }
+  page->kaddr=kpage;
+  cur->user_stack++;
+
+  upage=((uint8_t *) PHYS_BASE) - PGSIZE*(cur->user_stack);
+
+  if(!install_page(upage,kpage,true)){
+    free(page);
+    free(vme);
+    palloc_free_page(kpage);
+    return false;
+  }
+  insert_vme(&cur->vm,vme);
+  list_push_back(&cur->kpage_list,&page->elem);
+  list_push_back(&lru_list,&page->lru_elem);
+
+  return true;
+}
+
+bool handle_mm_fault(void* uaddr,struct intr_frame *f){
+   struct thread* cur=thread_current();
    struct vm_entry* vme=find_vme(uaddr);
+   struct kpage_t* page;
+   uint8_t *kpage;
    if(vme==NULL){
       /*
         IF STACK
           ALLOCATE NEW
         ELSE GOTO ERROR
       */
+      if(is_stack_boundary(f,uaddr)){
+        if(expand_stack()){
+          return true;
+        }
+      }
       goto error;
    }
+
    if(vme->loaded_on_phys){
-    return;
+    // printf("1 %p\n",uaddr);
+    // return false;
+    goto error;
    }
 
-   uint8_t *kpage=palloc_get_page(PAL_USER);
+   kpage=palloc_get_page(PAL_USER);
    if(kpage==NULL){
       kpage=demand_paging();
    }
-  struct kpage_t* page=malloc(sizeof* page);
+  page=malloc(sizeof* page);
   if(page==NULL){
     palloc_free_page(kpage);
     goto error;
@@ -896,8 +970,9 @@ void handle_mm_fault(void* uaddr){
    page->thread=cur;
    list_push_back(&lru_list,&page->lru_elem);
    list_push_back(&cur->kpage_list,&page->elem);
-   return;
+   return true;
 error:
    thread_current()->exit_status=-1;
    thread_exit();
+  //  return false;
 }

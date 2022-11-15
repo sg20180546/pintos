@@ -2,7 +2,7 @@
 #include "devices/block.h"
 #include <bitmap.h>
 #include <debug.h>
-
+static struct block* swap_device;
 static struct bitmap* swap_free_map;
 
 void swap_in(struct kpage_t* page){
@@ -17,7 +17,16 @@ void swap_in(struct kpage_t* page){
 size_t swap_out(struct kpage_t* page){
     bitmap_set(swap_free_map,page->vme->swap_sector,false);
     block_read(swap_device,page->vme->swap_sector,page->kaddr);
+    page->vme->swap_sector=-1;
 }
+
+void swap_deallocate(struct kpage_t* page){
+    if(page->vme->swap_sector==-1){
+        return;
+    }
+    bitmap_set(swap_free_map,page->vme->swap_sector,false);
+}
+
 void swap_init(void){
     swap_device=block_get_role(BLOCK_SWAP);
     if (swap_device == NULL)

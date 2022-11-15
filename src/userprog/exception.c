@@ -168,10 +168,12 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+   uint32_t* sp = user ? f->es : thread_current()->stack;
 
   if(not_present||user&&is_user_vaddr(fault_addr)){
-      handle_mm_fault(pg_round_down(fault_addr));
-      return;
+      if(handle_mm_fault(pg_round_down(fault_addr),f)){
+         return;
+      }
   }
 
   if(user&&is_kernel_vaddr(fault_addr) ) // user access to kernel addr : error

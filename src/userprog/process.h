@@ -2,12 +2,12 @@
 #define USERPROG_PROCESS_H
 
 #include "threads/thread.h"
-
+#include "threads/interrupt.h"
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t tid);
 void process_exit (void);
 void process_activate (void);
-void handle_mm_fault(void* uaddr);
+bool handle_mm_fault(void* uaddr,struct intr_frame *f);
 
 extern struct list lru_list;
 // int process_wait_tid(tid_t tid);

@@ -31,6 +31,7 @@
         "flags.h": "c",
         "block.h": "c",
         "hash.h": "c",
-        "bitmap.h": "c"
+        "bitmap.h": "c",
+        "stddef.h": "c"
     }
 }
