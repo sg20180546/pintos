@@ -27,7 +27,7 @@
 #include "vm/swap.h"
 #endif
 #define WORD_SIZE 4
-#define ULIMIT 1<<23
+#define ULIMIT (1<<20)
 #define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
                               **esp=(type)src;\
                                 }
@@ -822,7 +822,7 @@ static void* demand_paging(void){
       kaddr=kp_iter->kaddr;
       vaddr=kp_iter->vme->vaddr;
       pte=lookup_page(kp_iter->thread->pagedir,vaddr,false);
-      ASSERT(pte!=NULL);
+      // ASSERT(pte!=NULL);
       if(*pte&PTE_A){
         *pte&=~PTE_A;
         continue;
@@ -846,15 +846,27 @@ static void* demand_paging(void){
   }
 }
 
-static inline bool is_stack_boundary(struct intr_frame* f,void* uaddr){
+static inline bool is_stack_boundary(uint32_t* sp,void* uaddr){
   // uaddr=PHYS_BASE-uaddr;
   // printf("uaddr : %p\n",uaddr);
   // int pos=(uint32_t)uaddr/PGSIZE;
-  if(f->esp-32<=uaddr){
+  // printf("sp : %p uaddr : %p\n",sp,uaddr);
+  if(sp-8<=uaddr && uaddr>=LOADER_PHYS_BASE-ULIMIT && uaddr<=PHYS_BASE){
     // printf("is starckboudnary!!\n\n");
+
     return true;
   }
-  // printf("not stack boundar !! %p\n\n",uaddr);
+  // if(sp-8<=uaddr){
+  //   printf("1\n");
+  // }
+  // EXPECT_LTE((uint32_t*)LOADER_PHYS_BASE-(1<<20),uaddr);
+  // if(uaddr>=(uint32_t*)(LOADER_PHYS_BASE-ULIMIT)){
+  //   // printf("%p 2\n",uaddr);
+  // }
+  // if(uaddr<=PHYS_BASE){
+  //   printf("3\n");
+  // }
+  // printf("not stack boundar !! %p %p\n\n",LOADER_PHYS_BASE-(ULIMIT),uaddr);
   return false;
 }
 
@@ -881,6 +893,7 @@ static bool expand_stack(){
   kpage=palloc_get_page(PAL_USER);
   if(kpage==NULL){
        kpage=demand_paging();
+       ASSERT(kpage!=NULL);
   }
   page->kaddr=kpage;
   cur->user_stack++;
@@ -900,9 +913,10 @@ static bool expand_stack(){
   return true;
 }
 
-bool handle_mm_fault(void* uaddr,struct intr_frame *f){
+bool handle_mm_fault(void* uaddr,uint32_t* sp){
+  
    struct thread* cur=thread_current();
-   struct vm_entry* vme=find_vme(uaddr);
+   struct vm_entry* vme=find_vme(pg_round_down(uaddr));
    struct kpage_t* page;
    uint8_t *kpage;
    if(vme==NULL){
@@ -911,14 +925,14 @@ bool handle_mm_fault(void* uaddr,struct intr_frame *f){
           ALLOCATE NEW
         ELSE GOTO ERROR
       */
-      if(is_stack_boundary(f,uaddr)){
+      if(is_stack_boundary(sp,uaddr)){
         if(expand_stack()){
           return true;
         }
       }
       goto error;
    }
-
+    uaddr=pg_round_down(uaddr);
    if(vme->loaded_on_phys){
     // printf("1 %p\n",uaddr);
     // return false;

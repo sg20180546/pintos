@@ -7,7 +7,7 @@ tid_t process_execute (const char *file_name);
 int process_wait (tid_t tid);
 void process_exit (void);
 void process_activate (void);
-bool handle_mm_fault(void* uaddr,struct intr_frame *f);
+bool handle_mm_fault(void* uaddr,uint32_t *sp);
 
 extern struct list lru_list;
 // int process_wait_tid(tid_t tid);

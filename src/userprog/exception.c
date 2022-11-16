@@ -168,19 +168,22 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-   uint32_t* sp = user ? f->es : thread_current()->stack;
-
+   uint32_t* sp = user ? f->esp : thread_current()->stack;
+  
   if(not_present||user&&is_user_vaddr(fault_addr)){
-      if(handle_mm_fault(pg_round_down(fault_addr),f)){
+      if(handle_mm_fault(fault_addr,sp)){
          return;
       }
   }
 
-  if(user&&is_kernel_vaddr(fault_addr) ) // user access to kernel addr : error
+  if(user&&is_kernel_vaddr(fault_addr)||write ) // user access to kernel addr : error
   {
    thread_current()->exit_status=-1;
    thread_exit();
   }
+//   if(write){
+
+//   }
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

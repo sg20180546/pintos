@@ -32,6 +32,7 @@
         "block.h": "c",
         "hash.h": "c",
         "bitmap.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "pte.h": "c"
     }
 }
