@@ -216,7 +216,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     }
   
 
-  if(thread_mlfqs) {
+  if(thread_mlfqs||thread_aging) {
 
     t_iter=thread_current();
     t_iter->recent_cpu=add_mixed(t_iter->recent_cpu,1);

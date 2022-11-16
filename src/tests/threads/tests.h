@@ -11,7 +11,9 @@ extern test_func test_alarm_simultaneous;
 extern test_func test_alarm_priority;
 extern test_func test_alarm_zero;
 extern test_func test_alarm_negative;
+extern test_func test_priority_aging;
 extern test_func test_priority_change;
+extern test_func test_priority_change_2;
 extern test_func test_priority_donate_one;
 extern test_func test_priority_donate_multiple;
 extern test_func test_priority_donate_multiple2;
@@ -32,7 +34,7 @@ extern test_func test_mlfqs_fair_20;
 extern test_func test_mlfqs_nice_2;
 extern test_func test_mlfqs_nice_10;
 extern test_func test_mlfqs_block;
-
+extern test_func test_priority_lifo;
 void msg (const char *, ...);
 void fail (const char *, ...);
 void pass (void);

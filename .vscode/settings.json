@@ -22,6 +22,7 @@
         "filesys.h": "c",
         "lib.h": "c",
         "stdlib.h": "c",
-        "input.h": "c"
+        "input.h": "c",
+        "tests.h": "c"
     }
 }
