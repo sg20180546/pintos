@@ -88,7 +88,7 @@ simple_thread_func (void *data_)
 {
   struct simple_thread_data *data = data_;
   int i;
-  struct thread* cur=thread_current();
+  
   for (i = 0; i < ITER_CNT; i++) 
     {
       lock_acquire (data->lock);

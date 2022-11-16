@@ -24,20 +24,19 @@ test_mlfqs_load_1 (void)
   ASSERT (thread_mlfqs);
 
   msg ("spinning for up to 45 seconds, please wait...");
-  // printf("ready thread size : %u\n\n",ready_thread_size());
+
   start_time = timer_ticks ();
   for (;;) 
     {
       load_avg = thread_get_load_avg ();
       ASSERT (load_avg >= 0);
       elapsed = timer_elapsed (start_time) / TIMER_FREQ;
-      // printf("%d %d\n",load_avg,elapsed);
-      if (load_avg > 100)
+      if (load_avg > 50)
+        break;
+      else if (load_avg > 100)
         fail ("load average is %d.%02d "
               "but should be between 0 and 1 (after %d seconds)",
               load_avg / 100, load_avg % 100, elapsed);
-      else if (load_avg > 50)
-        break;
       else if (elapsed > 45)
         fail ("load average stayed below 0.5 for more than 45 seconds");
     }

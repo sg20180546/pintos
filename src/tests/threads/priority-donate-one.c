@@ -29,7 +29,6 @@ test_priority_donate_one (void)
   /* Make sure our priority is the default. */
   ASSERT (thread_get_priority () == PRI_DEFAULT);
 
-  // how to see global lock ?
   lock_init (&lock);
   lock_acquire (&lock);
   thread_create ("acquire1", PRI_DEFAULT + 1, acquire1_thread_func, &lock);
@@ -39,7 +38,6 @@ test_priority_donate_one (void)
   msg ("This thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 2, thread_get_priority ());
   lock_release (&lock);
-  // ASSERT(false);
   msg ("acquire2, acquire1 must already have finished, in that order.");
   msg ("This should be the last line before finishing this test.");
 }

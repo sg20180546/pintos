@@ -37,21 +37,21 @@ test_priority_donate_multiple (void)
 
   thread_create ("a", PRI_DEFAULT + 1, a_thread_func, &a);
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 1, thread_get_priority ()); // 1
+       PRI_DEFAULT + 1, thread_get_priority ());
 
   thread_create ("b", PRI_DEFAULT + 2, b_thread_func, &b);
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 2, thread_get_priority ()); // 2
+       PRI_DEFAULT + 2, thread_get_priority ());
 
   lock_release (&b);
-  msg ("Thread b should have just finished."); // 5
+  msg ("Thread b should have just finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 1, thread_get_priority ()); // 6
+       PRI_DEFAULT + 1, thread_get_priority ());
 
   lock_release (&a);
-  msg ("Thread a should have just finished."); // 9
+  msg ("Thread a should have just finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT, thread_get_priority ()); // 10
+       PRI_DEFAULT, thread_get_priority ());
 }
 
 static void
@@ -60,9 +60,9 @@ a_thread_func (void *lock_)
   struct lock *lock = lock_;
 
   lock_acquire (lock);
-  msg ("Thread a acquired lock a."); // 7
+  msg ("Thread a acquired lock a.");
   lock_release (lock);
-  msg ("Thread a finished."); // 8
+  msg ("Thread a finished.");
 }
 
 static void
@@ -71,7 +71,7 @@ b_thread_func (void *lock_)
   struct lock *lock = lock_;
 
   lock_acquire (lock);
-  msg ("Thread b acquired lock b."); // 3
+  msg ("Thread b acquired lock b.");
   lock_release (lock);
-  msg ("Thread b finished."); // 4
+  msg ("Thread b finished.");
 }
