@@ -579,7 +579,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
               uint32_t page_offset = phdr.p_vaddr & PGMASK;
               uint32_t read_bytes, zero_bytes;
 
-              // printf("%s:: offset %p\nvaddr %p\npaddr %p\nfilesz %p\nmemsz %p\n",file_name,phdr.p_offset,phdr.p_vaddr,phdr.p_paddr,phdr.p_filesz,phdr.p_memsz);
               if (phdr.p_filesz > 0)
                 {
                   /* Normal segment.
@@ -780,7 +779,7 @@ setup_stack (void **esp)
   // if (kpage != NULL) 
   //   {
       // success = install_page (upage, kpage, true);
-  success=expand_stack();
+  success=expand_stack(PHYS_BASE-PGSIZE);
   if (success){
     *esp = PHYS_BASE;
   }
@@ -810,71 +809,72 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-static void* demand_paging(void){
+void bf(){
+  printf("breakpoint\n");
+}
+static uint32_t* demand_paging(void){
   struct list_elem* iter;
   struct kpage_t* kp_iter;
   void* kaddr;
   void* vaddr;
   uint32_t * pte;
+  int i=0;
   while(1){
-    for(iter=list_begin(&lru_list);iter!=list_end(iter);iter=list_next(iter)){
+    for(iter=list_begin(&lru_list);iter!=list_end(&lru_list);iter=list_next(iter)){
       kp_iter=list_entry(iter,struct kpage_t,lru_elem);
+      ASSERT(kp_iter->vme->loaded_on_phys==true);
       kaddr=kp_iter->kaddr;
       vaddr=kp_iter->vme->vaddr;
+      // printf("dp : :%p %p\n",kaddr,vaddr);
       pte=lookup_page(kp_iter->thread->pagedir,vaddr,false);
       // ASSERT(pte!=NULL);
+      i++;
+      // printf("%d\n",i);
+      // if(i==366){
+      //   bf();
+      // }
       if(*pte&PTE_A){
+        // printf("Demand paging %p\n",vaddr);
         *pte&=~PTE_A;
         continue;
       }
-
-      if(*pte&PTE_D){
+      // printf("selected demand :%p\n",&pte);
+      if(*pte&PTE_D||kp_iter->vme->type==VM_ANON){
           *pte&=~PTE_D; // clear DIRTY BIT
           kp_iter->vme->type=VM_ANON; // type is now anon
-          // evict to swap disk
           swap_in(kp_iter);
       }
 
       list_remove(&kp_iter->elem);
       list_remove(&kp_iter->lru_elem);
       pagedir_clear_page(kp_iter->thread->pagedir,vaddr);
+      *pte&=~PTE_P;
+      // ASSERT(*pte&PTE_P==0);
       kp_iter->vme->loaded_on_phys=false;
 
+      memset(kaddr,0,PGSIZE);
       free(kp_iter);
+      // printf("demand paging retru n %p\n",kaddr);
       return kaddr;
     }
+
   }
 }
 
 static inline bool is_stack_boundary(uint32_t* sp,void* uaddr){
-  // uaddr=PHYS_BASE-uaddr;
-  // printf("uaddr : %p\n",uaddr);
-  // int pos=(uint32_t)uaddr/PGSIZE;
-  // printf("sp : %p uaddr : %p\n",sp,uaddr);
   if(sp-8<=uaddr && uaddr>=LOADER_PHYS_BASE-ULIMIT && uaddr<=PHYS_BASE){
-    // printf("is starckboudnary!!\n\n");
-
     return true;
   }
-  // if(sp-8<=uaddr){
-  //   printf("1\n");
-  // }
-  // EXPECT_LTE((uint32_t*)LOADER_PHYS_BASE-(1<<20),uaddr);
-  // if(uaddr>=(uint32_t*)(LOADER_PHYS_BASE-ULIMIT)){
-  //   // printf("%p 2\n",uaddr);
-  // }
-  // if(uaddr<=PHYS_BASE){
-  //   printf("3\n");
-  // }
-  // printf("not stack boundar !! %p %p\n\n",LOADER_PHYS_BASE-(ULIMIT),uaddr);
   return false;
 }
 
-static bool expand_stack(){
+static bool expand_stack(uint32_t* uaddr){
+  // printf("expand : %p",uaddr);
+  uint32_t* round_down_uaddr=pg_round_down(uaddr);
   struct vm_entry* vme;
   struct kpage_t* page;
   struct thread* cur=thread_current();
-  void* upage;
+
   uint8_t *kpage;
   vme=malloc(sizeof* vme);
   if(vme==NULL){
@@ -885,22 +885,24 @@ static bool expand_stack(){
     return false;
   }
   vme->type=VM_ANON;
-  vme->writable;
+  vme->writable=true;
   vme->loaded_on_phys=true;
   vme->swap_sector=-1;
+  vme->vaddr=round_down_uaddr;
   page->vme=vme;
   page->thread=cur;
-  kpage=palloc_get_page(PAL_USER);
+  kpage=palloc_get_page(PAL_USER|PAL_ZERO);
   if(kpage==NULL){
        kpage=demand_paging();
        ASSERT(kpage!=NULL);
   }
   page->kaddr=kpage;
-  cur->user_stack++;
+  // cur->user_stack++;
 
-  upage=((uint8_t *) PHYS_BASE) - PGSIZE*(cur->user_stack);
+  // upage=round_down_uaddr;
 
-  if(!install_page(upage,kpage,true)){
+  if(!install_page(round_down_uaddr,kpage,true)){
+    printf(" isntall page error\n");
     free(page);
     free(vme);
     palloc_free_page(kpage);
@@ -908,15 +910,19 @@ static bool expand_stack(){
   }
   insert_vme(&cur->vm,vme);
   list_push_back(&cur->kpage_list,&page->elem);
-  list_push_back(&lru_list,&page->lru_elem);
 
+
+
+  list_push_back(&lru_list,&page->lru_elem);
+  
   return true;
 }
 
-bool handle_mm_fault(void* uaddr,uint32_t* sp){
-  
+bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
+
    struct thread* cur=thread_current();
-   struct vm_entry* vme=find_vme(pg_round_down(uaddr));
+   uint32_t* round_down_uaddr=pg_round_down(uaddr);
+   struct vm_entry* vme=find_vme(round_down_uaddr);
    struct kpage_t* page;
    uint8_t *kpage;
    if(vme==NULL){
@@ -926,22 +932,21 @@ bool handle_mm_fault(void* uaddr,uint32_t* sp){
         ELSE GOTO ERROR
       */
       if(is_stack_boundary(sp,uaddr)){
-        if(expand_stack()){
+        if(expand_stack(uaddr)){
           return true;
         }
       }
       goto error;
    }
-    uaddr=pg_round_down(uaddr);
    if(vme->loaded_on_phys){
-    // printf("1 %p\n",uaddr);
-    // return false;
     goto error;
    }
-
-   kpage=palloc_get_page(PAL_USER);
+    // uaddr=pg_round_down(uaddr);
+   kpage=palloc_get_page(PAL_USER|PAL_ZERO);
    if(kpage==NULL){
       kpage=demand_paging();
+   }else{
+
    }
   page=malloc(sizeof* page);
   if(page==NULL){
@@ -956,16 +961,17 @@ bool handle_mm_fault(void* uaddr,uint32_t* sp){
     case VM_BIN:
       // read from file
       file_seek(vme->file,vme->offset);
-      if(file_read(vme->file,kpage,vme->read_bytes)!=(int)vme->read_bytes){
+      if(file_read(vme->file,page->kaddr,vme->read_bytes)!=(int)vme->read_bytes){
+        printf("ereror here?\n");
           goto error;
       }
-      memset(kpage+vme->read_bytes,0,vme->zero_bytes);
+      // memset(kpage+(vme->read_bytes),0,vme->zero_bytes);
       break;
     case VM_ANON:
-      // read from swap
       swap_out(page);
       break;
     case VM_FILE:
+    // printf("vmfile\n");
       break;
     default:
       break;
@@ -973,8 +979,9 @@ bool handle_mm_fault(void* uaddr,uint32_t* sp){
 
 
 
-   if(!install_page(uaddr,kpage,vme->writable)){
+   if(!install_page(round_down_uaddr,kpage,vme->writable)){
       palloc_free_page(kpage);
+      printf("iontsall page failed\n");
       goto error;
    }
 
@@ -982,6 +989,7 @@ bool handle_mm_fault(void* uaddr,uint32_t* sp){
    page->vme=vme;
    page->kaddr=kpage;
    page->thread=cur;
+     ASSERT(page->vme->vaddr!=NULL);
    list_push_back(&lru_list,&page->lru_elem);
    list_push_back(&cur->kpage_list,&page->elem);
    return true;

@@ -190,7 +190,7 @@ static void syscall_create(struct intr_frame* f)
   f->eax=filesys_create(file,initial_size);
 
   sema_up(file_handle_lock);
-  ASSERT(file_handle_lock->value==1);
+  // ASSERT(file_handle_lock->value==1);
 }
 
 static void syscall_remove(struct intr_frame* f)

@@ -33,6 +33,8 @@
         "hash.h": "c",
         "bitmap.h": "c",
         "stddef.h": "c",
-        "pte.h": "c"
+        "pte.h": "c",
+        "arc4.h": "c",
+        "swap.h": "c"
     }
 }

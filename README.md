@@ -64,7 +64,7 @@
 ### 3) Swap Partition
 `pintos-mkdisk swap.dsk --swap-size=4`
 - IA32 3.7.6 : DIRTY set by HARDWARE, clear by SOFTWARE
-
+- sizeof SECTOR = 512 bytes, sizeof PAGE = 4092 bytes
 ### 4) Memory Mapping files
 
 ## 4. File System

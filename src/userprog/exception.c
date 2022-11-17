@@ -64,7 +64,7 @@ exception_init (void)
   intr_register_int (7, 0, INTR_ON, kill,
                      "#NM Device Not Available Exception");
   intr_register_int (11, 0, INTR_ON, kill, "#NP Segment Not Present");
-  intr_register_int (12, 0, INTR_ON, kill, "#SS Stack Fault Exception");
+  intr_register_int (12, 0, INTR_ON, kill, "#SS  Fault Exception");
   intr_register_int (13, 0, INTR_ON, kill, "#GP General Protection Exception");
   intr_register_int (16, 0, INTR_ON, kill, "#MF x87 FPU Floating-Point Error");
   intr_register_int (19, 0, INTR_ON, kill,
@@ -169,14 +169,18 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
    uint32_t* sp = user ? f->esp : thread_current()->stack;
-  
+//   printf("%p %s %s\n",fault_addr,user ? "user " : "kernel",write ? "write" : "read");
+ 
   if(not_present||user&&is_user_vaddr(fault_addr)){
-      if(handle_mm_fault(fault_addr,sp)){
+      // d
+      // if(not_present)
+         
+      if(handle_mm_fault(fault_addr,sp)){ // how to handle kernel stack ??
          return;
       }
   }
-
-  if(user&&is_kernel_vaddr(fault_addr)||write ) // user access to kernel addr : error
+  
+ if(user&&is_kernel_vaddr(fault_addr)||write ) // user access to kernel addr : error
   {
    thread_current()->exit_status=-1;
    thread_exit();

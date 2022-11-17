@@ -113,7 +113,6 @@ struct thread
     struct list free_fd_list;
     int cur_max_fd;
     struct file* executing;
-    uint8_t user_stack;
 #endif
 
     /* Owned by thread.c. */
@@ -125,7 +124,7 @@ struct thread
     struct list_elem priority_donate_elem;
     int nice;
     fp_t recent_cpu;
-    bool recalculated;
+   //  bool recalculated;
 
     struct hash vm;
     struct list kpage_list;
@@ -173,7 +172,7 @@ inline void mlfqs_increase_recent_cpu(void);
 void mlfqs_recalculate_load_avg(void);
 void mlfqs_recalculate_recent_cpu(struct thread* t);
 void mlfqs_recalculate_priority(struct thread* t);
-void mlfqs_rearrange_priority_ready_list(void);
+// void mlfqs_rearrange_priority_ready_list(void);
 void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void);
 
 bool is_cur_priority_max(void);
