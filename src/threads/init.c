@@ -162,7 +162,7 @@ struct list lru_list;
 static void
 paging_init (void)
 {
-  list_init(&lru_list);
+  init_lru();
   uint32_t *pd, *pt;
   size_t page;
   extern char _start, _end_kernel_text;

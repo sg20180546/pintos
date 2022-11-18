@@ -35,6 +35,26 @@
 
 struct list all_list;
 struct list lru_list;
+struct lock lru_lock;
+
+void init_lru(){
+  list_init(&lru_list);
+  lock_init(&lru_lock);
+}
+
+void insert_lru_list(struct kpage_t* page){
+  lock_acquire(&lru_lock);
+  list_push_back(&lru_list,&page->lru_elem);
+  lock_release(&lru_lock);
+}
+
+void remove_lru_elem(struct kpage_t* page){
+  lock_acquire(&lru_lock);
+  list_remove(&page->lru_elem);
+  lock_release(&lru_lock);
+}
+
+
 struct semaphore* file_handle_lock;
 
 static thread_func start_process NO_RETURN;
@@ -842,7 +862,7 @@ static uint32_t* demand_paging(void){
       if(*pte&PTE_D||kp_iter->vme->type==VM_ANON){
           *pte&=~PTE_D; // clear DIRTY BIT
           kp_iter->vme->type=VM_ANON; // type is now anon
-          swap_in(kp_iter);
+          swap_out(kp_iter);
       }
 
       list_remove(&kp_iter->elem);
@@ -965,13 +985,11 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
         printf("ereror here?\n");
           goto error;
       }
-      // memset(kpage+(vme->read_bytes),0,vme->zero_bytes);
       break;
     case VM_ANON:
-      swap_out(page);
+      swap_in(page);
       break;
     case VM_FILE:
-    // printf("vmfile\n");
       break;
     default:
       break;
