@@ -133,11 +133,7 @@ static void construct_argument_stack(const char* cmdline,uint32_t** esp)
     sp-=size;
     strlcpy(sp,argv_temp[j],size);
 
-    // printf("%d %d %d %d\n",argv_temp[0][0],argv_temp[0][1],argv_temp[0][2],argv_temp[0][3]);
     argv_address[j]=sp;
-    // printf("%d %d %d %d\n",argv_temp[0][0],argv_temp[0][1],argv_temp[0][2],argv_temp[0][3]);
-    // printf("inner 3 %s %p %p\n\n",argv_temp[0],&argv_address[0],&argv_temp[0]);
-    // printf("%s %s\n\n",sp,argv_temp[j]);
   }
 
   size_t alignment=(uint32_t)sp%4;
@@ -162,14 +158,11 @@ static void construct_argument_stack(const char* cmdline,uint32_t** esp)
 
   sp-=WORD_SIZE;
   *(uint32_t*)sp=0;
-  // printf("%p %p %p %p \n\n",**esp,*esp,esp,sp);
   *esp=sp;
-  // printf("1\n");
+
   for(i=0;i<argc;i++){
-    // printf("loop %d\n",i);
     free(argv_temp[i]);
   }
-  // printf("2\n");
   free(argv_address);
   free(argv_temp);
 }
@@ -309,7 +302,6 @@ process_exit (void)
   struct kpage_t* kp_iter;
   printf("%s: exit(%d)\n",cur->name,cur->exit_status);
 
-  // sema_down(file_handle_lock);
   if(cur->executing){
 
     struct list* open_file_list=&cur->open_file_list;
@@ -346,9 +338,8 @@ process_exit (void)
   for(iter=list_begin(&cur->kpage_list);iter!=list_end(&cur->kpage_list);) {
     kp_iter=list_entry(iter,struct kpage_t,elem);
     list_remove(&kp_iter->lru_elem);
-    if(kp_iter->vme->type==VM_ANON){
+    if(kp_iter->vme->type==VM_ANON&&!kp_iter->vme->loaded_on_phys){
       swap_deallocate(kp_iter);
-      
     }
     iter=list_remove(iter);
     free(kp_iter);
@@ -642,10 +633,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* We arrive here whether the load is successful or not. */
 
-  
-  // if(file) {
-  //   file_deny_write(file);
-  // }
+
 
   return success;
 }
@@ -787,25 +775,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  // uint8_t *kpage;
   bool success = false;
-  // struct vm_entry* vme;
-  // struct kpage_t* page;
-  // struct thread* t=thread_current();
-  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  // printf("set")
-  // void* upage=((uint8_t *) PHYS_BASE) - PGSIZE;
-  // printf("setup stack : upage %p, %p\n",upage,pg_round_down(upage));
-  // if (kpage != NULL) 
-  //   {
-      // success = install_page (upage, kpage, true);
   success=expand_stack(PHYS_BASE-PGSIZE);
   if (success){
     *esp = PHYS_BASE;
   }
-      // else
-      //   palloc_free_page (kpage);
-    // }
   return success;
 }
 
@@ -822,7 +796,6 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
-  // printf(" install page : kpage %p upage %p , pagedir : %p\n",kpage,upage,vtop(t->pagedir));
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
@@ -845,14 +818,10 @@ static uint32_t* demand_paging(void){
       ASSERT(kp_iter->vme->loaded_on_phys==true);
       kaddr=kp_iter->kaddr;
       vaddr=kp_iter->vme->vaddr;
-      // printf("dp : :%p %p\n",kaddr,vaddr);
       pte=lookup_page(kp_iter->thread->pagedir,vaddr,false);
-      // ASSERT(pte!=NULL);
+
       i++;
-      // printf("%d\n",i);
-      // if(i==366){
-      //   bf();
-      // }
+
       if(*pte&PTE_A){
         // printf("Demand paging %p\n",vaddr);
         *pte&=~PTE_A;
@@ -869,16 +838,15 @@ static uint32_t* demand_paging(void){
       list_remove(&kp_iter->lru_elem);
       pagedir_clear_page(kp_iter->thread->pagedir,vaddr);
       *pte&=~PTE_P;
-      // ASSERT(*pte&PTE_P==0);
       kp_iter->vme->loaded_on_phys=false;
 
       memset(kaddr,0,PGSIZE);
       free(kp_iter);
-      // printf("demand paging retru n %p\n",kaddr);
       return kaddr;
     }
 
   }
+  NOT_REACHED();
 }
 
 static inline bool is_stack_boundary(uint32_t* sp,void* uaddr){

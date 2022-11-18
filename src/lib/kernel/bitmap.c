@@ -220,7 +220,8 @@ bitmap_set_multiple (struct bitmap *b, size_t start, size_t cnt, bool value)
   size_t i;
   
   ASSERT (b != NULL);
-  ASSERT (start <= b->bit_cnt);
+  // ASSERT (start <= b->bit_cnt);
+  EXPECT_LTE(start,b->bit_cnt);
   ASSERT (start + cnt <= b->bit_cnt);
 
   for (i = 0; i < cnt; i++)

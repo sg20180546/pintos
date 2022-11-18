@@ -34,7 +34,6 @@ void swap_deallocate(struct kpage_t* page){
     if(page->vme->swap_sector==NOT_IN_SWAP){
         return;
     }
-    // printf("swap deallocating! %d\n",page->vme->swap_sector);
     lock_acquire(&swap_lock);
     bitmap_set_multiple(swap_free_map,page->vme->swap_sector,SECTOR_PER_PAGE,false);
     lock_release(&swap_lock);
