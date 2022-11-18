@@ -31,7 +31,7 @@ void swap_in(struct kpage_t* page){
 }
 
 void swap_free(struct kpage_t* page){
-    if(page->vme->swap_sector==NOT_IN_SWAP){
+    if(page->vme->swap_sector==NOT_IN_SWAP||page->vme->loaded_on_phys==true){
         return;
     }
     lock_acquire(&swap_lock);

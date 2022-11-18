@@ -125,9 +125,12 @@ struct thread
     int nice;
     fp_t recent_cpu;
    //  bool recalculated;
-
+#ifdef VM
+    int cur_max_mappid;
     struct hash vm;
     struct list kpage_list;
+    struct list mmap_list;
+#endif
   };
 
 /* If false (default), use round-robin scheduler.

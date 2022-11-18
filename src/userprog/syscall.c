@@ -11,6 +11,8 @@
 #include "lib/string.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
+#include "vm/page.h"
+
 #define MAX_SYSCALL_NR 17
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
@@ -47,9 +49,9 @@ bool is_open_file_executing(const char* file){
 
   for(iter=list_begin(&all_list);iter!=list_end(&all_list);iter=list_next(iter)) {
     t_iter=list_entry(iter,struct thread,allelem);
-
+    // printf("%s %s\n",file,t_iter->name);
     if(!strcmp(file,t_iter->name)){
-
+      // printf("Return true\n\n");
       return true;
     }
   }
@@ -207,7 +209,7 @@ static void syscall_open(struct intr_frame* f)
 {  
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
-
+  struct thread* cur=thread_current();
   if(file==NULL){
     return;
   }
@@ -222,7 +224,9 @@ static void syscall_open(struct intr_frame* f)
   if(file_struct==NULL){
     f->eax=-1;
   }else{
+    file_struct->fd=++cur->cur_max_fd;
     f->eax=file_struct->fd;
+    // list_push_back(&cur->open_file_list,&file_struct->elem);
   }
 }
 
@@ -395,9 +399,65 @@ static void syscall_mmap(struct intr_frame* f){
   uint32_t* esp=f->esp;
   int fd=*(++esp);
   void* addr=*(++esp);
+  // printf("mmap\n");
+  struct vm_entry* vme;
+  struct file* file=find_file_by_fd(fd,thread_current());
+  if(file==NULL){
+    exit(-1);
+  }
+  struct mmap_file* mmap_file=malloc(sizeof (struct mmap_file));
+  if(mmap_file==NULL){
+    exit(-1);
+  }
+  mmap_file->file=file;
+  list_init(&mmap_file->vme_list);
+
+  /*
+    validate addr // address rounding
+    initilize vme
+  */
+  size_t fsize=file_length(file);
+  off_t off=0;
+  do
+  {
+    vme=malloc(*vme);
+    if(vme==NULL){
+      exit(-1);
+    }
+    vme->file=mmap_file;
+    vme->loaded_on_phys=false;
+    vme->type=VM_FILE;
+    vme->offset=off;
+    vme->read_bytes= fsize>= (PGSIZE) ? (PGSIZE) : fsize;
+    /* code */
+    vme->swap_sector=-1;
+    // vme->vaddr= addressroudnding need;
+    vme->writable=true;
+    off+=PGSIZE;
+  } while (off>fsize);
+  
+
+
+
 }
 
 static void syscall_munmap(struct intr_frame* f){
   uint32_t* esp=f->esp;
-  // mappid_t
+  int mapid=*(++esp);
+  struct thread* cur=thread_current();
+  struct mmap_file* mm_iter;
+  struct mmap_file* mmap_file=NULL;
+  struct list_elem* iter;
+  for(iter=list_begin(&cur->mmap_list);iter!=list_end(&cur->mmap_list);iter=list_next(iter)){
+    mm_iter=list_entry(iter,struct mmap_file,elem);
+    if(mm_iter->mapid==mapid){
+      mmap_file=mm_iter;
+      break;     
+    }
+  }
+  if(mmap_file==NULL){
+    exit(-1);
+  }
+
+
 }

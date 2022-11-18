@@ -327,14 +327,15 @@ process_exit (void)
   lock_acquire(&lru_lock);
   for(iter=list_begin(&cur->kpage_list);iter!=list_end(&cur->kpage_list);) {
     kp_iter=list_entry(iter,struct kpage_t,elem);
+    swap_free(kp_iter);
     if(kp_iter==lru_selected){
       iter=list_next(iter);
       continue;
     }
     list_remove(&kp_iter->lru_elem);
-    if(kp_iter->vme->type==VM_ANON&&!kp_iter->vme->loaded_on_phys){
-      swap_free(kp_iter);
-    }
+    // if(kp_iter->vme->type==VM_ANON&&!kp_iter->vme->loaded_on_phys){
+    //   swap_free(kp_iter);
+    // }
     iter=list_remove(iter);
     free(kp_iter);
   }
@@ -705,7 +706,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
   struct vm_entry* vme;
   struct file* reopen_file=file_reopen(file);
-
+  list_push_back(&t->open_file_list,&reopen_file->elem);
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -839,8 +840,9 @@ static uint32_t* demand_paging(void){
 
       list_remove(&kp_iter->elem);
       list_remove(&kp_iter->lru_elem);
-      pagedir_clear_page(kp_iter->thread->pagedir,vaddr);
+
       *pte&=~PTE_P;
+      invalidate_pagedir(kp_iter->thread->pagedir);
       kp_iter->vme->loaded_on_phys=false;
 
       memset(kaddr,0,PGSIZE);

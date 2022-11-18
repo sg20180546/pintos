@@ -545,7 +545,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->open_file_list);
   list_init(&t->free_fd_list);
   t->cur_max_fd=3;
-  // t->user_stack=0;
+  list_init(&t->mmap_list);
 #endif
 
 
