@@ -173,8 +173,9 @@ page_fault (struct intr_frame *f)
  
   if(not_present||user&&is_user_vaddr(fault_addr)){
       // d
-      // if(not_present)
-         
+      if(not_present){
+         // printf("%p %s %s\n",fault_addr,user ? "user " : "kernel",write ? "write" : "read");
+         }
       if(handle_mm_fault(fault_addr,sp)){ // how to handle kernel stack ??
          return;
       }

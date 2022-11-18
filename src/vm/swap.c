@@ -30,7 +30,7 @@ void swap_in(struct kpage_t* page){
     page->vme->swap_sector=NOT_IN_SWAP;
 }
 
-void swap_deallocate(struct kpage_t* page){
+void swap_free(struct kpage_t* page){
     if(page->vme->swap_sector==NOT_IN_SWAP){
         return;
     }

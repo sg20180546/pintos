@@ -35,6 +35,7 @@
         "stddef.h": "c",
         "pte.h": "c",
         "arc4.h": "c",
-        "swap.h": "c"
+        "swap.h": "c",
+        "process.h": "c"
     }
 }
