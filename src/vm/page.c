@@ -1,5 +1,5 @@
 #include "page.h"
-
+#include "threads/pte.h"
 struct hash lru_list;
 
 static unsigned vm_hash_func(const struct hash_elem* helem,void* aux UNUSED){
@@ -53,31 +53,39 @@ void vm_destroy(struct hash* vm){
     hash_destroy(vm,destroy_vme);
 }
 
+void all_mmap_destroy(struct list* mmap_list){
+    struct list_elem* iter;
+    struct list_elem* inner_iter;
+    struct mmap_file* mm_iter;
+    struct vm_entry* vm_iter;
+    for(iter=list_begin(mmap_list);iter!=list_end(mmap_list);){
+        mm_iter=list_entry(iter,struct mmap_file,elem);
+        // for(inner_iter=list_begin(&mm_iter->vme_list);inner_iter!=list_end(&mm_iter->vme_list);){
+        //     vm_iter=list_entry(inner_iter,struct vm_entry,mmap_elem);
+        //     // free(vm_iter);
+        // }
+        iter=list_remove(iter);
+        mmap_destroy(mm_iter);
+    }
+}
 
+void mmap_destroy(struct mmap_file* mmap_file){
+    struct list_elem* iter;
+    struct vm_entry* vm_iter;
+    struct thread* cur=thread_current();
+    uint32_t* pte;
 
+    for(iter=list_begin(&mmap_file->vme_list);iter!=list_end(&mmap_file->vme_list);){
+        vm_iter=list_entry(iter,struct vm_entry,mmap_elem);
+        hash_delete(&cur->vm,vm_iter);
+        iter=list_remove(iter);
 
-// static unsigned kpage_t_hash_func(const struct hash_elem* helem,void* aux UNUSED){
-//     struct kpage_t* kpage=hash_entry(helem,struct kpage_t,h_elem);
-//     return hash_int(kpage->kaddr);
-// }
+        pte = lookup_page (cur->pagedir, vm_iter->vaddr, false);
+        if (pte != NULL && (*pte & PTE_P) != 0){
+            *pte &= ~PTE_P;
+        }
+        free(vm_iter);
+    }
+    invalidate_pagedir (cur->pagedir);
+}
 
-// static bool kpage_t_less_func(const struct hash_elem* a, const struct hash_elem* b, void* aux UNUSED){
-//     struct kpage_t* ka=hash_entry(a,struct kpage_t,h_elem);
-//     struct kpage_t* kb=hash_entry(b,struct kpage_t,h_elem);
-//     if(kb->kaddr>ka->kaddr){
-//         return true;
-//     }
-//     return false;
-// }
-
-// void lru_init(struct hash* lru){
-//     hash_init(lru,kpage_t_hash_func,kpage_t_less_func,NULL);
-// }
-
-// inline void insert_kpage(struct kpage* kpage){
-//     hash_insert(&lru_list,&kpage->h_elem);
-// }
-
-// inline void delete_kpage(struct kpage_t*kpage){
-
-// }

@@ -27,7 +27,7 @@
 #include "vm/swap.h"
 #endif
 #define WORD_SIZE 4
-#define ULIMIT (1<<20)
+
 #define ALIGNED_PUSH(esp,src,type) {esp-=(char*)WORD_SIZE;\
                               **esp=(type)src;\
                                 }
@@ -339,6 +339,8 @@ process_exit (void)
     iter=list_remove(iter);
     free(kp_iter);
   }
+
+  all_mmap_destroy(&cur->mmap_list);
   vm_destroy(&cur->vm);
   lock_release(&lru_lock);
   /* Destroy the current process's page directory and switch back
@@ -798,7 +800,7 @@ install_page (void *upage, void *kpage, bool writable)
 }
 
 void bf(){
-  printf("breakpoint\n");
+  // printf("breakpoint\n");
 }
 static uint32_t* demand_paging(void){
 
@@ -831,8 +833,12 @@ static uint32_t* demand_paging(void){
         continue;
       }
       lru_selected=kp_iter;
-
-      if(*pte&PTE_D||kp_iter->vme->type==VM_ANON){
+      if(kp_iter->vme->type==VM_FILE){
+        lock_acquire(file_handle_lock);
+        file_write_at(kp_iter->vme->file,kp_iter->vme->vaddr,PGSIZE,kp_iter->vme->offset);
+        lock_release(file_handle_lock);
+      }
+      else if(*pte&PTE_D||kp_iter->vme->type==VM_ANON){
           *pte&=~PTE_D; // clear DIRTY BIT
           kp_iter->vme->type=VM_ANON; // type is now anon
           swap_out(kp_iter);
@@ -926,9 +932,11 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
           return true;
         }
       }
+      // printf("h1\n");
       goto error;
    }
    if(vme->loaded_on_phys){
+    // printf("1.5\n");
     goto error;
    }
 
@@ -939,6 +947,7 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
 
   if(page==NULL){
     palloc_free_page(kpage);
+    // printf("2\n");
     goto error;
   }
    page->vme=vme;
@@ -946,18 +955,20 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
 
     switch (vme->type)
     {
+    case VM_FILE:
     case VM_BIN:
-      // read from file
-      file_seek(vme->file,vme->offset);
-      if(file_read(vme->file,page->kaddr,vme->read_bytes)!=(int)vme->read_bytes){
+
+
+      if(file_read_at(vme->file,page->kaddr,vme->read_bytes,vme->offset)
+        !=(int)vme->read_bytes){
+          // printf("hereasdf? %d\n",a);
           goto error;
       }
       break;
     case VM_ANON:
       swap_in(page);
       break;
-    case VM_FILE:
-      break;
+
     default:
       break;
     }
@@ -966,7 +977,7 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
 
    if(!install_page(round_down_uaddr,kpage,vme->writable)){
       palloc_free_page(kpage);
-      printf("iontsall page failed\n");
+      // printf("iontsall page failed\n");
       goto error;
    }
 

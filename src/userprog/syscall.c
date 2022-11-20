@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <user/syscall.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -57,7 +58,7 @@ bool is_open_file_executing(const char* file){
   }
   return false;
 }
-static inline void exit(int status){
+static inline void _exit(int status){
   // printf("here? %d\n\n",status);
   thread_current()->exit_status=status;
   thread_exit();
@@ -186,7 +187,7 @@ static void syscall_create(struct intr_frame* f)
   const char* file=*(++esp);
   unsigned initial_size=*(++esp);
   if(file==NULL){
-    exit(-1);
+    _exit(-1);
   }
   sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
@@ -253,11 +254,11 @@ static void syscall_read(struct intr_frame* f)
   
 
   if(!is_user_vaddr(buffer) ){
-    exit(-1);
+    _exit(-1);
   }
   
   if(fd==STDOUT_FILENO||fd<0){
-    exit(-1);
+    _exit(-1);
   }
 
   if(fd==STDIN_FILENO){
@@ -275,7 +276,7 @@ static void syscall_read(struct intr_frame* f)
   struct file* file_struct=find_file_by_fd(fd,thread_current());
 
   if(file_struct==NULL){
-    exit(-1);
+    _exit(-1);
   }else{
     sema_down(file_handle_lock);
     f->eax=file_read(file_struct,buffer,size);
@@ -399,15 +400,52 @@ static void syscall_mmap(struct intr_frame* f){
   uint32_t* esp=f->esp;
   int fd=*(++esp);
   void* addr=*(++esp);
-  // printf("mmap\n");
+  void* vaddr;
+  struct thread* cur=thread_current();
+  size_t fsize;
+  size_t page_n;
+  off_t off;
+
+  if(addr!=pg_round_down(addr)){
+    // printf("1\n");
+    f->eax=MAP_FAILED;
+    return;
+  }
   struct vm_entry* vme;
   struct file* file=find_file_by_fd(fd,thread_current());
   if(file==NULL){
-    exit(-1);
+    // exit(-1);
+    // printf("2\n");
+    f->eax=MAP_FAILED;
+    return;
   }
+  file=file_reopen(file);
+
+  fsize=file_length(file);
+  page_n=(fsize/PGSIZE)+1;
+  // printf("fsize %ld , %p\n",fsize,);
+  for(vaddr=addr;vaddr<addr+fsize;vaddr+=PGSIZE){
+    // printf("vaddr : %p\n",vaddr);
+    if(find_vme(vaddr)!=NULL){
+      // printf("3 base addr %p  vaddr %p vaddr+fsize %p\n",addr,vaddr,addr+fsize);
+      f->eax=MAP_FAILED;
+      return;
+    }
+    if(vaddr>=LOADER_PHYS_BASE-ULIMIT){
+      // printf("4 base addr %p  vaddr %p\n",addr,vaddr);
+      f->eax=MAP_FAILED;
+      return;
+    }
+    EXPECT_EQ(vaddr,pg_round_down(vaddr));
+  }
+
+
   struct mmap_file* mmap_file=malloc(sizeof (struct mmap_file));
   if(mmap_file==NULL){
-    exit(-1);
+    // printf("5\n");
+    f->eax=MAP_FAILED;
+    // _exit(-1);
+    return;
   }
   mmap_file->file=file;
   list_init(&mmap_file->vme_list);
@@ -416,29 +454,33 @@ static void syscall_mmap(struct intr_frame* f){
     validate addr // address rounding
     initilize vme
   */
-  size_t fsize=file_length(file);
-  off_t off=0;
-  do
+
+
+
+  for(vaddr=addr,off=0; off<fsize; vaddr+=PGSIZE,off+=PGSIZE)
   {
-    vme=malloc(*vme);
+    vme=malloc(sizeof *vme);
     if(vme==NULL){
-      exit(-1);
+      // printf("6\n");
+      f->eax=MAP_FAILED;
+      return;
     }
-    vme->file=mmap_file;
+    vme->file=file;
     vme->loaded_on_phys=false;
     vme->type=VM_FILE;
     vme->offset=off;
-    vme->read_bytes= fsize>= (PGSIZE) ? (PGSIZE) : fsize;
-    /* code */
+    vme->read_bytes= fsize-off >= (PGSIZE) ? (PGSIZE) : fsize-off;
+    // printf("mmap readbytes :%ld\n",vme->read_bytes);
     vme->swap_sector=-1;
-    // vme->vaddr= addressroudnding need;
+    vme->vaddr= vaddr;
     vme->writable=true;
-    off+=PGSIZE;
-  } while (off>fsize);
+    vme->mmap_file=mmap_file;
+    list_push_back(&mmap_file->vme_list,&vme->mmap_elem);
+    insert_vme(&cur->vm,vme);
+    EXPECT_EQ(vaddr,pg_round_down(vaddr));
+  }
   
-
-
-
+  list_push_back(&cur->mmap_list,&mmap_file->elem);
 }
 
 static void syscall_munmap(struct intr_frame* f){
@@ -456,8 +498,9 @@ static void syscall_munmap(struct intr_frame* f){
     }
   }
   if(mmap_file==NULL){
-    exit(-1);
+    _exit(-1);
   }
+  mmap_destroy(mmap_file);
 
 
 }

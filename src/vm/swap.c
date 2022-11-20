@@ -19,7 +19,8 @@ void swap_out(struct kpage_t* page){
 }
 void swap_in(struct kpage_t* page){
     int i;
-    ASSERT(page->vme->swap_sector!=-1);
+    // ASSERT(page->vme->swap_sector!=-1);
+    EXPECT_NE(page->vme->swap_sector,-1);
     lock_acquire(&swap_lock);
     memset(page->kaddr,0,PGSIZE);
     bitmap_set_multiple(swap_free_map,page->vme->swap_sector,SECTOR_PER_PAGE,false);
