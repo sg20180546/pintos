@@ -833,10 +833,11 @@ static uint32_t* demand_paging(void){
         continue;
       }
       lru_selected=kp_iter;
-      if(kp_iter->vme->type==VM_FILE){
+      if(kp_iter->vme->type==VM_FILE&&*pte&PTE_D){
         lock_acquire(file_handle_lock);
         file_write_at(kp_iter->vme->file,kp_iter->vme->vaddr,PGSIZE,kp_iter->vme->offset);
         lock_release(file_handle_lock);
+        *pte&=~PTE_D;
       }
       else if(*pte&PTE_D||kp_iter->vme->type==VM_ANON){
           *pte&=~PTE_D; // clear DIRTY BIT
@@ -932,11 +933,9 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
           return true;
         }
       }
-      // printf("h1\n");
       goto error;
    }
    if(vme->loaded_on_phys){
-    // printf("1.5\n");
     goto error;
    }
 
@@ -947,7 +946,6 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
 
   if(page==NULL){
     palloc_free_page(kpage);
-    // printf("2\n");
     goto error;
   }
    page->vme=vme;
@@ -958,10 +956,12 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
     case VM_FILE:
     case VM_BIN:
 
-
-      if(file_read_at(vme->file,page->kaddr,vme->read_bytes,vme->offset)
-        !=(int)vme->read_bytes){
-          // printf("hereasdf? %d\n",a);
+      file_seek(vme->file,vme->offset);
+      EXPECT_EQ(vme->file->pos,vme->offset);
+      size_t file_read_size=file_read(vme->file,page->kaddr,vme->read_bytes);
+      // if(vme->type==VM_FILE)
+      // EXPECT_NE(file_read_size,vme->read_bytes);
+      if( file_read_size!=(int)vme->read_bytes){
           goto error;
       }
       break;
@@ -977,7 +977,6 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
 
    if(!install_page(round_down_uaddr,kpage,vme->writable)){
       palloc_free_page(kpage);
-      // printf("iontsall page failed\n");
       goto error;
    }
 
@@ -992,6 +991,7 @@ bool handle_mm_fault(uint32_t* uaddr,uint32_t* sp){
    lock_release(&lru_lock);
    return true;
 error:
+  // printf("exit here\n");
    thread_current()->exit_status=-1;
    thread_exit();
   //  return false;

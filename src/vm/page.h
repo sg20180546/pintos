@@ -54,6 +54,6 @@ inline void delete_vme(struct hash* vm, struct vm_entry* vme);
 struct vm_entry* find_vme(void* vaddr);
 void vm_destroy(struct hash* vm);
 
-void mmap_destroy(struct mmap_file* mmap_file);
+struct list_elem* mmap_destroy(struct mmap_file* mmap_file, bool free_vm);
 
 #endif

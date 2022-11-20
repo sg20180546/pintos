@@ -126,7 +126,7 @@ struct thread
     fp_t recent_cpu;
    //  bool recalculated;
 #ifdef VM
-    int cur_max_mappid;
+    int cur_max_mapid;
     struct hash vm;
     struct list kpage_list;
     struct list mmap_list;

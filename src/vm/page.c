@@ -1,5 +1,6 @@
 #include "page.h"
 #include "threads/pte.h"
+#include "threads/interrupt.h"
 struct hash lru_list;
 
 static unsigned vm_hash_func(const struct hash_elem* helem,void* aux UNUSED){
@@ -55,37 +56,58 @@ void vm_destroy(struct hash* vm){
 
 void all_mmap_destroy(struct list* mmap_list){
     struct list_elem* iter;
-    struct list_elem* inner_iter;
+    // struct list_elem* inner_iter;
     struct mmap_file* mm_iter;
-    struct vm_entry* vm_iter;
+    // struct vm_entry* vm_iter;
     for(iter=list_begin(mmap_list);iter!=list_end(mmap_list);){
         mm_iter=list_entry(iter,struct mmap_file,elem);
         // for(inner_iter=list_begin(&mm_iter->vme_list);inner_iter!=list_end(&mm_iter->vme_list);){
         //     vm_iter=list_entry(inner_iter,struct vm_entry,mmap_elem);
         //     // free(vm_iter);
         // }
-        iter=list_remove(iter);
-        mmap_destroy(mm_iter);
+        // iter=list_remove(iter);
+        iter=mmap_destroy(mm_iter,false);
+        free(mm_iter);
     }
 }
 
-void mmap_destroy(struct mmap_file* mmap_file){
+struct list_elem* mmap_destroy(struct mmap_file* mmap_file,bool free_vm){
     struct list_elem* iter;
     struct vm_entry* vm_iter;
     struct thread* cur=thread_current();
     uint32_t* pte;
-
+    
     for(iter=list_begin(&mmap_file->vme_list);iter!=list_end(&mmap_file->vme_list);){
         vm_iter=list_entry(iter,struct vm_entry,mmap_elem);
-        hash_delete(&cur->vm,vm_iter);
+        
+        // hash_delete(&cur->vm,vm_iter);
         iter=list_remove(iter);
 
         pte = lookup_page (cur->pagedir, vm_iter->vaddr, false);
+        // void* kaddr= pg_round_down(*pte);
+        // file_write_at(vm_iter->file,vm_iter->vaddr,vm_iter->read_bytes,vm_iter->offset);
         if (pte != NULL && (*pte & PTE_P) != 0){
+            if(*pte&PTE_D){
+                // if(intr_get_level()==INTR_ON)
+                 file_write_at(vm_iter->file,vm_iter->vaddr,vm_iter->read_bytes,vm_iter->offset);
+                // else{
+                    // intr_set_level(INTR_ON);
+                    // file_write_at(vm_iter->file,pg_round_down(*pte),vm_iter->read_bytes,vm_iter->offset);
+                    // intr_set_level(INTR_OFF);
+                // }
+            }
             *pte &= ~PTE_P;
         }
+        // if(free_vm){
+
+            // free(vm_iter);
+        delete_vme(&cur->vm,vm_iter);
         free(vm_iter);
+        // }
     }
+
+    
     invalidate_pagedir (cur->pagedir);
+    return list_remove(&mmap_file->elem);
 }
 

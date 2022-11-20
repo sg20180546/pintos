@@ -59,7 +59,6 @@ bool is_open_file_executing(const char* file){
   return false;
 }
 static inline void _exit(int status){
-  // printf("here? %d\n\n",status);
   thread_current()->exit_status=status;
   thread_exit();
 }
@@ -406,16 +405,13 @@ static void syscall_mmap(struct intr_frame* f){
   size_t page_n;
   off_t off;
 
-  if(addr!=pg_round_down(addr)){
-    // printf("1\n");
+  if(addr!=pg_round_down(addr)||addr==NULL){
     f->eax=MAP_FAILED;
     return;
   }
   struct vm_entry* vme;
   struct file* file=find_file_by_fd(fd,thread_current());
   if(file==NULL){
-    // exit(-1);
-    // printf("2\n");
     f->eax=MAP_FAILED;
     return;
   }
@@ -423,11 +419,8 @@ static void syscall_mmap(struct intr_frame* f){
 
   fsize=file_length(file);
   page_n=(fsize/PGSIZE)+1;
-  // printf("fsize %ld , %p\n",fsize,);
   for(vaddr=addr;vaddr<addr+fsize;vaddr+=PGSIZE){
-    // printf("vaddr : %p\n",vaddr);
     if(find_vme(vaddr)!=NULL){
-      // printf("3 base addr %p  vaddr %p vaddr+fsize %p\n",addr,vaddr,addr+fsize);
       f->eax=MAP_FAILED;
       return;
     }
@@ -442,18 +435,12 @@ static void syscall_mmap(struct intr_frame* f){
 
   struct mmap_file* mmap_file=malloc(sizeof (struct mmap_file));
   if(mmap_file==NULL){
-    // printf("5\n");
     f->eax=MAP_FAILED;
-    // _exit(-1);
     return;
   }
   mmap_file->file=file;
+  mmap_file->mapid=++cur->cur_max_mapid;
   list_init(&mmap_file->vme_list);
-
-  /*
-    validate addr // address rounding
-    initilize vme
-  */
 
 
 
@@ -481,6 +468,7 @@ static void syscall_mmap(struct intr_frame* f){
   }
   
   list_push_back(&cur->mmap_list,&mmap_file->elem);
+  f->eax=mmap_file->mapid;
 }
 
 static void syscall_munmap(struct intr_frame* f){
@@ -498,9 +486,11 @@ static void syscall_munmap(struct intr_frame* f){
     }
   }
   if(mmap_file==NULL){
-    _exit(-1);
+    // _exit(-1);
+    return;
   }
-  mmap_destroy(mmap_file);
-
+  list_remove(&mmap_file->elem);
+  mmap_destroy(mmap_file,true);
+  free(mmap_file);
 
 }
