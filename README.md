@@ -1,4 +1,4 @@
-# PintOS
+# Pintos code hacking by sg20180546
 
 ## 1. Thread (clear at 9/2)
 ### 1) Alarm Clock
@@ -23,6 +23,9 @@
 - Every 40 ms (4 tick)
 - Every 1 second(1 tick * TIME_FREQ)
 
+- parameter dependecies
+<img src = "https://user-images.githubusercontent.com/81512075/203112201-4c916d47-e152-428b-8360-90c283af7918.png" width="400" height="400">
+- flow chart
 <img src = "https://user-images.githubusercontent.com/81512075/188171945-e76f513b-709a-455a-964b-1f20129e4eef.png" width="500" height="800">
 - disable thread_set_priority(int new_priority)
 - disable priority donation
@@ -49,9 +52,22 @@
  
  ![image](https://user-images.githubusercontent.com/81512075/196632021-a0b98f89-8ada-4335-a777-51bb73e38059.png)
 
-## 3. VM
+- linux interrupt vector table (IVT)
+
+ <img src = "https://user-images.githubusercontent.com/81512075/203111903-d99b5351-35e5-4e9d-9a24-365db28feb15.png" width="600" height="600">
+
+fail at novm-oom
+
+## 3. VM (clear at 11/22)
+pintos page pool(palloc.c) layout
+![image](https://user-images.githubusercontent.com/81512075/203113648-3495d1ec-c463-4270-bf24-b36c3fd7f00e.png)
+
 ### 1) Demand Paging
-- load_segment : map vm_entry -> file offset , not load file on phys
+- load_segment : map vm_entry -> ELf file offset , not load file on phys
+- Overview of DISK ELF transformed to MEMORY
+![image](https://user-images.githubusercontent.com/81512075/203114255-71b7c3a3-e6ac-406d-a4e3-2adb406b96ae.png)
+
+
 - page_fault : load file by certain file offset at vm entry
 - Swapping by Clock Algorithm
     - IA32 3.7.6 : ACCESS,PRESENT / set by HARDWARE, clear by SOFTWARE(OS)
@@ -59,16 +75,25 @@
     - Replacement : traverse lru_list(circular, struct page) and check access bit 
         -> if access bit==1 : set access bit 0; next;
         -> if access bit==0 : evict page(pagedir_clear_page); load file to kaddr; map page(install_page);
+        -> if dirty bit ==1 or vme_types==VM_ANON : need to be SWAP OUT, vme types=VM_ANON
 ### 2) Stack Growing
-- Check vaddr is valid stack growing area (ULIMIT: 1MB, pusha : 8 byte low than cur sp)
-- new vm entry about new stack area
+- Check vaddr is valid stack growing area (pintos ULIMIT: 1MB , pusha : 8 byte low than cur sp)
+- new vm entry about new stack area, VM_ANON
+- SWAP OUT to SWAP DISK
 ### 3) Swap Partition
 `pintos-mkdisk swap.dsk --swap-size=4`
 - IA32 3.7.6 : DIRTY set by HARDWARE, clear by SOFTWARE
 - sizeof SECTOR = 512 bytes, sizeof PAGE = 4092 bytes
-- If swap in/out , write/read to 8 sector
-### 4) Memory Mapping files
+- If swap in/out , write/read to 8(PGSIZE/BLOCK_SECTOR_SIZE) sector
 
+- Before filesys project, Overview of pintos SATA disk layout
+![image](https://user-images.githubusercontent.com/81512075/203112701-0ffc5dee-cde1-441b-85df-110bc64d33d2.png)
+- managing (free) swap partition by bitmap
+### 4) Memory Mapping files
+- Files to memory
+- memory needs to be sync to file when unmap, process exited.
+
+fail at page-merge-mm
 
  -------------------------------------
 #### command
