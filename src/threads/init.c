@@ -36,6 +36,7 @@
 #include "devices/ide.h"
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
+#include "vm/swap.h"
 #endif
 
 /* Page directory with kernel mappings only. */
@@ -127,6 +128,7 @@ main (void)
   ide_init ();
   locate_block_devices ();
   filesys_init (format_filesys);
+  swap_init();
 #endif
 
   printf ("Boot complete.\n");
@@ -156,9 +158,13 @@ bss_init (void)
    kernel virtual mapping, and then sets up the CPU to use the
    new page directory.  Points init_page_dir to the page
    directory it creates. */
+struct list lru_list;
 static void
 paging_init (void)
 {
+#ifdef VM
+  init_lru();
+#endif
   uint32_t *pd, *pt;
   size_t page;
   extern char _start, _end_kernel_text;
@@ -408,7 +414,7 @@ locate_block_devices (void)
    ROLE. */
 static void
 locate_block_device (enum block_type role, const char *name)
-{
+{ 
   struct block *block = NULL;
 
   if (name != NULL)

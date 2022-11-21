@@ -5,7 +5,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
+#include "threads/palloc.h"
+#include "filesys/file.h"
 // #include "lib/user/syscall.h"
 #include "syscall.h"
 
@@ -63,16 +64,16 @@ exception_init (void)
   intr_register_int (7, 0, INTR_ON, kill,
                      "#NM Device Not Available Exception");
   intr_register_int (11, 0, INTR_ON, kill, "#NP Segment Not Present");
-  intr_register_int (12, 0, INTR_ON, kill, "#SS Stack Fault Exception");
+  intr_register_int (12, 0, INTR_ON, kill, "#SS  Fault Exception");
   intr_register_int (13, 0, INTR_ON, kill, "#GP General Protection Exception");
   intr_register_int (16, 0, INTR_ON, kill, "#MF x87 FPU Floating-Point Error");
   intr_register_int (19, 0, INTR_ON, kill,
-                     "#XF SIMD Floating-Point Exception");
+                     "#XF SIMD Floating-Point Exception"); //0x13
 
   /* Most exceptions can be handled with interrupts turned on.
      We need to disable interrupts for page faults because the
      fault address is stored in CR2 and needs to be preserved. */
-  intr_register_int (14, 0, INTR_OFF, page_fault, "#PF Page-Fault Exception");
+  intr_register_int (14, 0, INTR_OFF, page_fault, "#PF Page-Fault Exception"); // 0xe
 }
 
 /* Prints exception statistics. */
@@ -135,6 +136,8 @@ kill (struct intr_frame *f)
    can find more information about both of these in the
    description of "Interrupt 14--Page Fault Exception (#PF)" in
    [IA32-v3a] section 5.15 "Exception and Interrupt Reference". */
+
+
 static void
 page_fault (struct intr_frame *f) 
 {
@@ -165,29 +168,28 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-//   if(!user||is_kernel_vaddr(fault_addr))
-//   {
-//    thread_current()->exit_status=-1;
-//    thread_exit();
-//    return;                                                
-//   }
-//   if(user&&not_present){
-//    thread_current()->exit_status=-1;
-//    thread_exit();
-//    return;     
-//   }
-
-
-  if(is_kernel_vaddr(fault_addr)||not_present)
+   uint32_t* sp = user ? f->esp : thread_current()->stack;
+//   printf("%p %s %s\n",fault_addr,user ? "user " : "kernel",write ? "write" : "read");
+ 
+  if(not_present||user&&is_user_vaddr(fault_addr)){
+      // d
+      if(not_present){
+         // printf("%p %s %s\n",fault_addr,user ? "user " : "kernel",write ? "write" : "read");
+         }
+      if(handle_mm_fault(fault_addr,sp)){ // how to handle kernel stack ??
+         return;
+      }
+  }
+  
+ if(user&&is_kernel_vaddr(fault_addr)||write ) // user access to kernel addr : error
   {
    thread_current()->exit_status=-1;
    thread_exit();
   }
-//   if(user&&not_present){
-//    thread_current()->exit_status=-1;
-//    thread_exit();
-//    return;     
+//   if(write){
+
 //   }
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

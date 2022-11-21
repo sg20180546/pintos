@@ -84,7 +84,7 @@ tss_init (void)
      ones we initialize. */
   tss = palloc_get_page (PAL_ASSERT | PAL_ZERO);
   tss->ss0 = SEL_KDSEG;
-  tss->bitmap = 0xdfff;
+  tss->bitmap = 0xdfff; // 1101 1111 1111 1111
   tss_update ();
 }
 

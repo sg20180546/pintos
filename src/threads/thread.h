@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include "fixed_point.h"
 #include "synch.h"
+#include "lib/kernel/hash.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -24,7 +26,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-
+extern struct list priority_ready_list[PRI_MAX+1];
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -93,14 +95,14 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    struct list_elem blocked_elem;
+   //  struct list_elem blocked_elem;
     struct thread* parent;
     struct semaphore child_sema;
     struct semaphore exit_sema;
     struct semaphore exit_sema2;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+    uint32_t *pagedir;                  /* Page directory. virtual address, but direct map(pagedir-3GB==physcal address of pd)*/
     struct list ps_wait_list;
     struct list_elem ps_wait_elem;
 
@@ -110,6 +112,7 @@ struct thread
     struct list open_file_list;
     struct list free_fd_list;
     int cur_max_fd;
+    struct file* executing;
 #endif
 
     /* Owned by thread.c. */
@@ -121,7 +124,13 @@ struct thread
     struct list_elem priority_donate_elem;
     int nice;
     fp_t recent_cpu;
-    bool recalculated;
+   //  bool recalculated;
+#ifdef VM
+    int cur_max_mapid;
+    struct hash vm;
+    struct list kpage_list;
+    struct list mmap_list;
+#endif
   };
 
 /* If false (default), use round-robin scheduler.
@@ -166,7 +175,7 @@ inline void mlfqs_increase_recent_cpu(void);
 void mlfqs_recalculate_load_avg(void);
 void mlfqs_recalculate_recent_cpu(struct thread* t);
 void mlfqs_recalculate_priority(struct thread* t);
-void mlfqs_rearrange_priority_ready_list(void);
+// void mlfqs_rearrange_priority_ready_list(void);
 void mlfqs_recalculate_recent_cpu_in_priority_ready_list(void);
 
 bool is_cur_priority_max(void);

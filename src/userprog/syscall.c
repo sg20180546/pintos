@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <user/syscall.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -11,6 +12,8 @@
 #include "lib/string.h"
 #include "devices/shutdown.h"
 #include "devices/input.h"
+#include "vm/page.h"
+
 #define MAX_SYSCALL_NR 17
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
@@ -47,16 +50,15 @@ bool is_open_file_executing(const char* file){
 
   for(iter=list_begin(&all_list);iter!=list_end(&all_list);iter=list_next(iter)) {
     t_iter=list_entry(iter,struct thread,allelem);
-
+    // printf("%s %s\n",file,t_iter->name);
     if(!strcmp(file,t_iter->name)){
-
+      // printf("Return true\n\n");
       return true;
     }
   }
   return false;
 }
-static inline void exit(int status){
-  // printf("here? %d\n\n",status);
+static inline void _exit(int status){
   thread_current()->exit_status=status;
   thread_exit();
 }
@@ -112,8 +114,11 @@ static inline bool is_valid_vaddr(uint32_t * esp){
   if(*esp>MAX_SYSCALL_NR){
     return false;
   }
+  if(!is_user_vaddr(esp)){
+    return false;
+  }
   for(i=0;i<=syscall_handlers[*esp].argc;++i){
-    if(!is_user_vaddr(esp+i)){
+    if(!is_user_vaddr(*(esp+i))){
       return false;
     }
   }
@@ -143,7 +148,6 @@ syscall_handler (struct intr_frame *f)
 
   uint32_t syscall_nr=*((uint32_t*)esp);
   struct syscall_handler_t* handler=&syscall_handlers[syscall_nr];
-
   handler->func(f);
 }
 
@@ -181,20 +185,14 @@ static void syscall_create(struct intr_frame* f)
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
   unsigned initial_size=*(++esp);
-
+  if(file==NULL){
+    _exit(-1);
+  }
   sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
+
   sema_up(file_handle_lock);
-  // EXPECT_EQ(ret,false);
-  // asm volatile
-  // (
-  //   "movl %1, %%eax\n\t"
-  //   "movl %%eax, %0\n\t"
-  //   :"=m"(check)
-  //   :"m"(ret)
-  //   :"eax"
-  // );
-  // EXPECT_EQ(ret,check);
+  // ASSERT(file_handle_lock->value==1);
 }
 
 static void syscall_remove(struct intr_frame* f)
@@ -211,7 +209,7 @@ static void syscall_open(struct intr_frame* f)
 {  
   uint32_t* esp= f->esp;
   const char* file=*(++esp);
-
+  struct thread* cur=thread_current();
   if(file==NULL){
     return;
   }
@@ -226,7 +224,9 @@ static void syscall_open(struct intr_frame* f)
   if(file_struct==NULL){
     f->eax=-1;
   }else{
+    file_struct->fd=++cur->cur_max_fd;
     f->eax=file_struct->fd;
+    // list_push_back(&cur->open_file_list,&file_struct->elem);
   }
 }
 
@@ -253,11 +253,11 @@ static void syscall_read(struct intr_frame* f)
   
 
   if(!is_user_vaddr(buffer) ){
-    exit(-1);
+    _exit(-1);
   }
   
   if(fd==STDOUT_FILENO||fd<0){
-    exit(-1);
+    _exit(-1);
   }
 
   if(fd==STDIN_FILENO){
@@ -275,7 +275,7 @@ static void syscall_read(struct intr_frame* f)
   struct file* file_struct=find_file_by_fd(fd,thread_current());
 
   if(file_struct==NULL){
-    exit(-1);
+    _exit(-1);
   }else{
     sema_down(file_handle_lock);
     f->eax=file_read(file_struct,buffer,size);
@@ -356,7 +356,7 @@ static void syscall_close(struct intr_frame* f)
   
   if(file_struct){
     sema_down(file_handle_lock);
-
+    list_remove(&file_struct->elem);
     file_allow_write(file_struct);
     file_close(file_struct);
     sema_up(file_handle_lock);
@@ -399,9 +399,98 @@ static void syscall_mmap(struct intr_frame* f){
   uint32_t* esp=f->esp;
   int fd=*(++esp);
   void* addr=*(++esp);
+  void* vaddr;
+  struct thread* cur=thread_current();
+  size_t fsize;
+  size_t page_n;
+  off_t off;
+
+  if(addr!=pg_round_down(addr)||addr==NULL){
+    f->eax=MAP_FAILED;
+    return;
+  }
+  struct vm_entry* vme;
+  struct file* file=find_file_by_fd(fd,thread_current());
+  if(file==NULL){
+    f->eax=MAP_FAILED;
+    return;
+  }
+  file=file_reopen(file);
+
+  fsize=file_length(file);
+  page_n=(fsize/PGSIZE)+1;
+  for(vaddr=addr;vaddr<addr+fsize;vaddr+=PGSIZE){
+    if(find_vme(vaddr)!=NULL){
+      f->eax=MAP_FAILED;
+      return;
+    }
+    if(vaddr>=LOADER_PHYS_BASE-ULIMIT){
+      // printf("4 base addr %p  vaddr %p\n",addr,vaddr);
+      f->eax=MAP_FAILED;
+      return;
+    }
+    EXPECT_EQ(vaddr,pg_round_down(vaddr));
+  }
+
+
+  struct mmap_file* mmap_file=malloc(sizeof (struct mmap_file));
+  if(mmap_file==NULL){
+    f->eax=MAP_FAILED;
+    return;
+  }
+  mmap_file->file=file;
+  mmap_file->mapid=++cur->cur_max_mapid;
+  list_init(&mmap_file->vme_list);
+
+
+
+  for(vaddr=addr,off=0; off<fsize; vaddr+=PGSIZE,off+=PGSIZE)
+  {
+    vme=malloc(sizeof *vme);
+    if(vme==NULL){
+      // printf("6\n");
+      f->eax=MAP_FAILED;
+      return;
+    }
+    vme->file=file;
+    vme->loaded_on_phys=false;
+    vme->type=VM_FILE;
+    vme->offset=off;
+    vme->read_bytes= fsize-off >= (PGSIZE) ? (PGSIZE) : fsize-off;
+    // printf("mmap readbytes :%ld\n",vme->read_bytes);
+    vme->swap_sector=-1;
+    vme->vaddr= vaddr;
+    vme->writable=true;
+    vme->mmap_file=mmap_file;
+    list_push_back(&mmap_file->vme_list,&vme->mmap_elem);
+    insert_vme(&cur->vm,vme);
+    EXPECT_EQ(vaddr,pg_round_down(vaddr));
+  }
+  
+  list_push_back(&cur->mmap_list,&mmap_file->elem);
+  f->eax=mmap_file->mapid;
 }
 
 static void syscall_munmap(struct intr_frame* f){
   uint32_t* esp=f->esp;
-  // mappid_t
+  int mapid=*(++esp);
+  struct thread* cur=thread_current();
+  struct mmap_file* mm_iter;
+  struct mmap_file* mmap_file=NULL;
+  struct list_elem* iter;
+  for(iter=list_begin(&cur->mmap_list);iter!=list_end(&cur->mmap_list);iter=list_next(iter)){
+    mm_iter=list_entry(iter,struct mmap_file,elem);
+    if(mm_iter->mapid==mapid){
+      mmap_file=mm_iter;
+      break;     
+    }
+  }
+  if(mmap_file==NULL){
+    // _exit(-1);
+    return;
+  }
+  list_remove(&mmap_file->elem);
+  mmap_destroy(mmap_file,true);
+  free(mmap_file);
+
 }

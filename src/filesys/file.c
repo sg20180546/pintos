@@ -19,7 +19,7 @@ static bool fd_cmp(struct list_elem* a, struct list_elem* b,void* aux UNUSED){
   return false;
 }
 
-static int allocate_fd(struct thread* t){
+int allocate_fd(struct thread* t){
   int ret;
   struct list* free_fd_list=&t->free_fd_list;
   if(!list_empty(free_fd_list)) {
@@ -41,7 +41,7 @@ file_open (struct inode *inode)
       file->inode = inode;
       file->pos = 0;
       file->deny_write = false;
-      file->fd=allocate_fd(thread_current());
+      // file->fd=allocate_fd(thread_current());
       return file;
     }
   else
@@ -69,11 +69,11 @@ file_close (struct file *file)
     {
       inode_close (file->inode);
 
-      if(file->fd>=0){
-        struct free_fd_elem* elem=malloc(sizeof(struct free_fd_elem));
-        elem->fd=file->fd;
-        list_insert_ordered(&thread_current()->free_fd_list,&elem->elem,fd_cmp,NULL);
-      }
+      // if(file->fd>=0){
+      //   struct free_fd_elem* elem=malloc(sizeof(struct free_fd_elem));
+      //   elem->fd=file->fd;
+      //   list_insert_ordered(&thread_current()->free_fd_list,&elem->elem,fd_cmp,NULL);
+      // }
       free (file); 
 
     }

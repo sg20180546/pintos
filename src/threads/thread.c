@@ -15,6 +15,7 @@
 #include "userprog/process.h"
 #endif
 #include "devices/timer.h"
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -24,7 +25,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 // static struct list ready_list;
-static struct list priority_ready_list[PRI_MAX+1];
+struct list priority_ready_list[PRI_MAX+1];
 
 
 /* List of all processes.  Processes are added to this list
@@ -175,7 +176,35 @@ thread_print_stats (void)
 
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
-   Priority scheduling is the goal of Problem 1-3. */
+   Priority scheduling is the goal of Problem 1-3. 
+   
+   STACK , kernel pool, 4KB
+    top(base+4KB)
+    ------------------------
+   | KERNEL THREAD FRAME    |
+   | void* eip              |
+   | void* function (void*) |
+   | void* aux              |
+    ------------------------
+   | SWITCH ENTRY FRAME     |
+   | void* eip              |
+    ------------------------
+   | SWITCH THREADS FRAME   |
+   | void* edi,esi,ebp,ebx  |
+   | void* eip(void*)       |
+   | struct thread* next    |
+   | struct thread* cur     |
+    ------------------------
+   |                        |
+   |                        |
+              .
+              .
+              .
+              .
+   |                        |
+    ------------------------
+   base    
+   */
 struct thread*
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
@@ -506,7 +535,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->priority_donations);
   t->wait_on_lock=NULL;
   t->recent_cpu=0;
-  t->recalculated=false;
+  // t->recalculated=false;
   sema_init(&t->child_sema,0);
   sema_init(&t->exit_sema,0);
   sema_init(&t->exit_sema2,0);
@@ -516,8 +545,12 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->open_file_list);
   list_init(&t->free_fd_list);
   t->cur_max_fd=3;
+  list_init(&t->mmap_list);
+  t->cur_max_mapid=0;
 #endif
 
+
+  // 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -725,36 +758,36 @@ void mlfqs_recalculate_priority(struct thread* t) {
   t->priority=min(t->priority,PRI_MAX);
  
 }
-void mlfqs_rearrange_priority_ready_list(void){
-  struct thread* t_iter;
-  struct list_elem* iter;
-  struct list_elem* buffer;
-  int i;
-  for(i=PRI_MAX;i>=0;i--){
+// void mlfqs_rearrange_priority_ready_list(void){
+//   struct thread* t_iter;
+//   struct list_elem* iter;
+//   struct list_elem* buffer;
+//   int i;
+//   for(i=PRI_MAX;i>=0;i--){
 
-    for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);){
+//     for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);){
       
-      t_iter=list_entry(iter,struct thread, elem);
-      if(!t_iter->recalculated){
+//       t_iter=list_entry(iter,struct thread, elem);
+//       if(!t_iter->recalculated){
 
-        mlfqs_recalculate_priority(t_iter);
-        buffer=iter;
-        iter=list_remove(iter);
-        list_push_back(&priority_ready_list[t_iter->priority],buffer);
-        t_iter->recalculated=true;
-      }else{
-        iter=list_next(iter);
-      }
-    }
-  }
+//         mlfqs_recalculate_priority(t_iter);
+//         buffer=iter;
+//         iter=list_remove(iter);
+//         list_push_back(&priority_ready_list[t_iter->priority],buffer);
+//         t_iter->recalculated=true;
+//       }else{
+//         iter=list_next(iter);
+//       }
+//     }
+//   }
 
-  for(i=PRI_MAX;i>=0;i--){
-    for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);iter=list_next(iter)){
-      t_iter=list_entry(iter,struct thread, elem);
-      t_iter->recalculated=false;
-    }
-  }
-}
+//   for(i=PRI_MAX;i>=0;i--){
+//     for(iter=list_begin(&priority_ready_list[i]);iter!=list_end(&priority_ready_list[i]);iter=list_next(iter)){
+//       t_iter=list_entry(iter,struct thread, elem);
+//       t_iter->recalculated=false;
+//     }
+//   }
+// }
 bool is_cur_priority_max(void){
   int i;
   int cur_pri=thread_get_priority();

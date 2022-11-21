@@ -21,7 +21,7 @@
 #define	PTSHIFT PGBITS		           /* First page table bit. */
 #define PTBITS  10                         /* Number of page table bits. */
 #define PTSPAN  (1 << PTBITS << PGBITS)    /* Bytes covered by a page table. */
-#define PTMASK  BITMASK(PTSHIFT, PTBITS)   /* Page table bits (12:21). */
+#define PTMASK  BITMASK(PTSHIFT, PTBITS)   /* Page table bits (12:21). */ 
 
 /* Page directory index (bits 22:31). */
 #define PDSHIFT (PTSHIFT + PTBITS)         /* First page directory bit. */
@@ -64,8 +64,8 @@ static inline uintptr_t pd_no (const void *va) {
 #define PTE_P 0x1               /* 1=present, 0=not present. */
 #define PTE_W 0x2               /* 1=read/write, 0=read-only. */
 #define PTE_U 0x4               /* 1=user/kernel, 0=kernel only. */
-#define PTE_A 0x20              /* 1=accessed, 0=not acccessed. */
-#define PTE_D 0x40              /* 1=dirty, 0=not dirty (PTEs only). */
+#define PTE_A 0x20              /* 1=accessed, 0=not acccessed. PWT*/
+#define PTE_D 0x40              /* 1=dirty, 0=not dirty (PTEs only). PCD*/
 
 /* Returns a PDE that points to page table PT. */
 static inline uint32_t pde_create (uint32_t *pt) {

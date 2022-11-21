@@ -50,21 +50,55 @@
  ![image](https://user-images.githubusercontent.com/81512075/196632021-a0b98f89-8ada-4335-a777-51bb73e38059.png)
 
 ## 3. VM
+### 1) Demand Paging
+- load_segment : map vm_entry -> file offset , not load file on phys
+- page_fault : load file by certain file offset at vm entry
+- Swapping by Clock Algorithm
+    - IA32 3.7.6 : ACCESS,PRESENT / set by HARDWARE, clear by SOFTWARE(OS)
+    - When vaddr Access : handle page fault and load(set PTE PRESENT by HARDWARE), insert lru_list -> Hardware set PTE access bit(reference bit) to 1
+    - Replacement : traverse lru_list(circular, struct page) and check access bit 
+        -> if access bit==1 : set access bit 0; next;
+        -> if access bit==0 : evict page(pagedir_clear_page); load file to kaddr; map page(install_page);
+### 2) Stack Growing
+- Check vaddr is valid stack growing area (ULIMIT: 1MB, pusha : 8 byte low than cur sp)
+- new vm entry about new stack area
+### 3) Swap Partition
+`pintos-mkdisk swap.dsk --swap-size=4`
+- IA32 3.7.6 : DIRTY set by HARDWARE, clear by SOFTWARE
+- sizeof SECTOR = 512 bytes, sizeof PAGE = 4092 bytes
+- If swap in/out , write/read to 8 sector
+### 4) Memory Mapping files
 
-## 4. File System
 
  -------------------------------------
 #### command
 0. set gcc older version
 `sudo update-alternatives --config gcc`
-1. threads
+
+1. pintos gdb
+shell1 )
+`src/userprog/build $ pintos --gdb -v -k -T 60 --qemu  --filesys-size=2 -p tests/userprog/args-multiple -a args-multiple -- -q  -f run 'args-multiple some arguments for you!'`
+
+shell @)
+`src/userprog/build $ gdb kernel.o`
+`(gdb) target remote localhost:1234`
+`(gdb) continue`
+
+2. threads
 `pintos run alarm-multiple`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make tests/threads/alarm-multiple.result.`
 `gs201@gs201-14Z90N-VR5DK:~/Desktop/pintos/src/threads/build$` `make check`
-2. userprog
+3. userprog
 `pintos-mkdisk filesys.dsk --filesys-size=2`
 `pintos -f -q`
 `pintos -p ../../examples/echo -a echo -- -q`
 `pintos -q run 'echo x'`
 `pintos --filesys-size=2 –p ../../examples/echo –a echo -- -f –q run ‘echo x’`
+
+4. vm
+src/userprog/Make.vars
+`KERNEL_SUBDIRS = threads devices lib lib/kernel userprog filesys vm`
+if there is new c file to compile, Makefile.build
+`vm_SRC = vm/page.c `
+
 
