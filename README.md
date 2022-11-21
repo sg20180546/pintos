@@ -63,7 +63,7 @@ pintos page pool(palloc.c) layout
 ![image](https://user-images.githubusercontent.com/81512075/203113648-3495d1ec-c463-4270-bf24-b36c3fd7f00e.png)
 
 ### 1) Demand Paging
-- load_segment : map vm_entry -> ELf file offset , not load file on phys
+- load_segment : map vm_entry -> ELF file offset , not load file on phys
 - Overview of DISK ELF transformed to MEMORY
 ![image](https://user-images.githubusercontent.com/81512075/203114255-71b7c3a3-e6ac-406d-a4e3-2adb406b96ae.png)
 
@@ -94,6 +94,8 @@ pintos page pool(palloc.c) layout
 - memory needs to be sync to file when unmap, process exited.
 
 fail at page-merge-mm
+
+5. Filesys (progressing)
 
  -------------------------------------
 #### command
