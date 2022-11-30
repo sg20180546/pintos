@@ -95,7 +95,17 @@ pintos page pool(palloc.c) layout
 
 fail at page-merge-mm
 
+### 5) Page Pinning
+
 ## 5. Filesys (progressing)
+
+### 1) Buffer Cache
+- init buffer cache
+- read handling
+- evicting handling
+
+### 2) File Extension
+- indirect inode
 
  -------------------------------------
 #### command
