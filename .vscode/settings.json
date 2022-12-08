@@ -38,6 +38,7 @@
         "swap.h": "c",
         "process.h": "c",
         "main.h": "c",
-        "cache.h": "c"
+        "cache.h": "c",
+        "free-map.h": "c"
     }
 }

@@ -17,8 +17,6 @@ static void do_format (void);
 
 extern struct list free_fd_list;
 
-extern int CUR_MAX_FD;
-
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
