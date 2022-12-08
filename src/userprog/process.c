@@ -327,6 +327,7 @@ process_exit (void)
   lock_acquire(&lru_lock);
   for(iter=list_begin(&cur->kpage_list);iter!=list_end(&cur->kpage_list);) {
     kp_iter=list_entry(iter,struct kpage_t,elem);
+    kp_iter->vme->pinned=false;
     swap_free(kp_iter);
     if(kp_iter==lru_selected){
       iter=list_next(iter);
@@ -731,6 +732,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       vme->offset=ofs;
       vme->vaddr=upage;
       vme->loaded_on_phys=false;
+      vme->pinned=false;
       vme->writable=writable;
       vme->type=VM_BIN;
       ofs+=PGSIZE;
@@ -809,7 +811,7 @@ static uint32_t* demand_paging(void){
   void* kaddr;
   void* vaddr;
   uint32_t * pte;
-  int i=0;
+
   kaddr=palloc_get_page(PAL_USER|PAL_ZERO);
   if(kaddr!=NULL){
     return kaddr;
@@ -823,8 +825,7 @@ static uint32_t* demand_paging(void){
       vaddr=kp_iter->vme->vaddr;
       pte=lookup_page(kp_iter->thread->pagedir,vaddr,false);
 
-      i++;
-      if(kp_iter==lru_selected){
+      if(kp_iter==lru_selected||kp_iter->vme->pinned==true){
         continue;
       }
       if(*pte&(uint32_t)PTE_A){
@@ -887,6 +888,7 @@ static bool expand_stack(uint32_t* uaddr){
   vme->type=VM_ANON;
   vme->writable=true;
   vme->loaded_on_phys=true;
+  vme->pinned=true;
   vme->swap_sector=NOT_IN_SWAP;
   vme->vaddr=round_down_uaddr;
   page->vme=vme;
@@ -912,6 +914,9 @@ static bool expand_stack(uint32_t* uaddr){
   list_push_back(&cur->kpage_list,&page->elem);
   list_push_back(&lru_list,&page->lru_elem);
   lock_release(&lru_lock);
+  if(intr_context()){
+    vme->pinned=false;
+  }
   return true;
 }
 

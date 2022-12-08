@@ -28,7 +28,7 @@ struct syscall_handler_t {
   char argc;
 };
 
-
+struct lock lru_lock;
 struct semaphore* file_handle_lock;
 
 static struct file* find_file_by_fd(int fd,struct thread* cur) {
@@ -107,6 +107,21 @@ struct syscall_handler_t syscall_handlers[]=
                         {syscall_close,"close",1},{syscall_max_of_four_int,"max_of_four_int",4},
                         {syscall_fibonacci,"fibonacci",1},{syscall_mmap,"mmap",2},{syscall_munmap,"munmap",1}};
 
+static void pin_vm_entry(void* vaddr,bool pin){
+  uint32_t* round_down_addr=pg_round_down(vaddr);
+  struct vm_entry* vme=find_vme(round_down_addr);
+  if(vme==NULL){
+    return;
+  }
+  vme->pinned=pin;
+}
+
+// static void unpin_vm_entry(void* vaddr){
+//   uint32_t* round_down_addr=pg_round_down(vaddr);
+//   struct vm_entry* vme=find_vme(round_down_addr);
+//   vme->pinned=false;
+// }
+
 
 static inline bool is_valid_vaddr(uint32_t * esp){
 
@@ -122,6 +137,13 @@ static inline bool is_valid_vaddr(uint32_t * esp){
       return false;
     }
   }
+  // enum intr_level level=intr_disable();
+  // lock_acquire(&lru_lock);
+  for(i=0;i<=syscall_handlers[*esp].argc;++i){
+    pin_vm_entry(*(esp+i),true);
+  }
+  // lock_release(&lru_lock);
+  // intr_set_level(level);
   return true;
 }
 
@@ -137,7 +159,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  
+  int i;
   
   uint32_t* esp=f->esp;
 
@@ -149,6 +171,13 @@ syscall_handler (struct intr_frame *f)
   uint32_t syscall_nr=*((uint32_t*)esp);
   struct syscall_handler_t* handler=&syscall_handlers[syscall_nr];
   handler->func(f);
+  // enum intr_level level=intr_disable();
+  // lock_acquire(&lru_lock);
+  for(i=0;i<=syscall_handlers[*esp].argc;++i){
+    pin_vm_entry(*(esp+i),false);
+  }
+  // lock_release(&lru_lock);
+  // intr_set_level(level);
 }
 
 static void syscall_halt(struct intr_frame* f)

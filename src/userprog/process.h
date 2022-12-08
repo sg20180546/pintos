@@ -10,5 +10,6 @@ void process_activate (void);
 bool handle_mm_fault(uint32_t* uaddr,uint32_t *sp);
 
 extern struct list lru_list;
+extern struct lock lru_lock;
 void init_lru();
 #endif /* userprog/process.h */

@@ -286,6 +286,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         {
           /* Write full sector directly to disk. */
           block_write (fs_device, sector_idx, buffer + bytes_written);
+
+          
         }
       else 
         {

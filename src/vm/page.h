@@ -18,7 +18,7 @@ struct vm_entry
     uint8_t type;
     void* vaddr;
     bool writable;
-
+    bool pinned;
     bool loaded_on_phys;
     struct file* file;
 

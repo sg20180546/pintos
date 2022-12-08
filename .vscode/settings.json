@@ -37,6 +37,7 @@
         "arc4.h": "c",
         "swap.h": "c",
         "process.h": "c",
-        "main.h": "c"
+        "main.h": "c",
+        "cache.h": "c"
     }
 }

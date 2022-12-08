@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "cache.h"
 
 #include "lib/kernel/list.h"
 #include "threads/thread.h"
@@ -35,6 +36,9 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
+
+  bct_init();
+
 }
 
 /* Shuts down the file system module, writing any unwritten data
