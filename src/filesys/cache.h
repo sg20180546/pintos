@@ -5,8 +5,12 @@
 #include "devices/block.h"
 #include "filesys/inode.h"
 
-#define DIRTY(b) 0x1&(b)
-#define CLOCK(b) 0x2&(b)
+#define IS_DIRTY(b) 0x1&(b)
+#define IS_REF(b) 0x2&(b)
+
+#define SET_DIRTY(b) (b)&=0x1
+#define SET_REF(b) (b)&=0x2
+
 #define CACHE_SIZE 64
 #define UNUNSED -1
 
@@ -18,6 +22,7 @@ struct buffer_head{
     struct lock lock;
 };
 
+struct buffer_head* bc_clock;
 
 struct buffer_head buffer_cache_table[CACHE_SIZE];
 
