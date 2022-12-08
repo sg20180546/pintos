@@ -16,7 +16,7 @@ free_map_init (void)
   if (free_map == NULL)
     PANIC ("bitmap creation failed--file system device is too large");
   bitmap_mark (free_map, FREE_MAP_SECTOR);
-  bitmap_mark (free_map, ROOT_DIR_SECTOR);
+  bitmap_mark (free_map, ROOT_DIR_SECTOR); // reserved here
 }
 
 /* Allocates CNT consecutive sectors from the free map and stores

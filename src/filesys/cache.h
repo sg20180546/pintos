@@ -5,17 +5,19 @@
 #include "devices/block.h"
 #include "filesys/inode.h"
 
-#define IS_DIRTY(b) 0x1&(b)
-#define IS_REF(b) 0x2&(b)
+// #define IS_DIRTY(b) (0x1&(b)) ? true : false
+// #define IS_REF(b) (0x2&(b)) ? true : false
 
-#define SET_DIRTY(b) (b)&=0x1
-#define SET_REF(b) (b)&=0x2
+// #define SET_DIRTY(b) (b)&=0x1
+// #define SET_REF(b) (b)&=0x2
 
 #define CACHE_SIZE 64
 #define UNUNSED -1
 
 struct buffer_head{
-    uint8_t bit;
+    // uint8_t bit;
+    bool dirty;
+    bool ref;
     struct inode* inode;
     block_sector_t sector;
     uint8_t data[BLOCK_SECTOR_SIZE];
@@ -30,7 +32,7 @@ void bct_init(void);
 
 void bc_init(struct buffer_head* cache,struct inode* inode,block_sector_t sector);
 
-bool bc_read(block_sector_t sector_idx, void* buffer,off_t bytes_read, int chunk_size, int sector_ofs);
+bool bc_read(struct inode* inode,block_sector_t sector_idx, void* buffer,off_t bytes_read, int chunk_size, int sector_ofs);
 
 bool bc_write(block_sector_t sector_idx, void* buffer,off_t bytes_written,int chunk_size,int sector_ofs);
 

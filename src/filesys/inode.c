@@ -6,7 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
-
+#include "cache.h"
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
@@ -60,7 +60,7 @@ inode_create (block_sector_t sector, off_t length) //0 ,512
   bool success = false;
 
   ASSERT (length >= 0);
-
+  printf("\ninode creaeting  : sector : %d length : %d\n",sector,length);
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
@@ -71,8 +71,10 @@ inode_create (block_sector_t sector, off_t length) //0 ,512
       size_t sectors = bytes_to_sectors (length); // # of sector
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+
       if (free_map_allocate (sectors, &disk_inode->start)) // sector start position
         {
+          printf("inode create at : %d start : %d// # of sectors ? %d ,\n",sector,disk_inode->start,sectors);
           // printf("hello length %d sectors %d, inoe start sector %d\n\n",length,sectors,disk_inode->start);
           block_write (fs_device, sector, disk_inode);
           if (sectors > 0) 
@@ -205,11 +207,15 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
+        
+      //////////////////////////////////////
 
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Read full sector directly into caller's buffer. */
+          // bc_read(sector_idx,buffer,bytes_read,chunk_size,sector_ofs);
           block_read (fs_device, sector_idx, buffer + bytes_read);
+          
         }
       else 
         {
@@ -224,7 +230,9 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
           block_read (fs_device, sector_idx, bounce);
           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
         }
-      
+      ////////////////////////////////////////
+
+
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;

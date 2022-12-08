@@ -16,7 +16,8 @@ void bct_init(void){
 
 void bc_init(struct buffer_head* cache,struct inode* inode,block_sector_t sector){
     cache->inode=inode;
-    cache->bit&=0x0;
+    cache->dirty=false;
+    cache->ref=false;
     cache->sector=sector;
     memset(cache->data,0,BLOCK_SECTOR_SIZE);
     lock_init(&cache->lock);
@@ -32,11 +33,9 @@ void bc_flush_all_entries(void){
 void bc_flush_entry(struct buffer_head* p_flush_entry){
     EXPECT_NE(fs_device,NULL);
     lock_acquire(&p_flush_entry->lock);
-    // p_flush_entry->inode;
-    // int sector=p_flush_entry->inode.;t
-    // struct inode* inode=p_flush_entry->inode;
-    
-    block_write(fs_device,p_flush_entry->inode->data.start,p_flush_entry->data);
+
+    p_flush_entry->dirty=false;
+    block_write(fs_device,p_flush_entry->sector,p_flush_entry->data);
     lock_release(&p_flush_entry->lock);
 }
 
@@ -52,28 +51,58 @@ struct buffer_head* bc_lookup(block_sector_t sector){
 }
 
 
-bool bc_read(block_sector_t sector_idx, void* buffer,off_t bytes_read, int chunk_size, int sector_ofs){
+bool bc_read(struct inode* inode,block_sector_t sector_idx, void* buffer,off_t bytes_read, int chunk_size, int sector_ofs){
+    // find first
     struct buffer_head* bc=bc_lookup(sector_idx);
+    
+    //if there no cache
     if(bc==NULL){
         // evict
         bc=bc_select_victim();
-        // read to buffer cach
-        // copy to buffer
+        // construct buffer cache
+        block_read(fs_device,sector_idx,bc->data);
+        bc->inode=inode;
     }else{
-        memcpy(buffer+bytes_read,bc->data,chunk_size);
-        SET_REF(bc->bit);
+
     }
+
+    // copy to buffer
+    memcpy(buffer+bytes_read,bc->data+sector_ofs,chunk_size);
+    bc->ref=true;
 }
 
 struct buffer_head* bc_select_victim(void){
     int idx=(bc_clock-buffer_cache_table)/sizeof(struct buffer_head);
+    struct buffer_head* cur;
     while (1)
     {
-        for(;idx<CACHE_SIZE;idx++)
-            if(IS_REF(&buffer_cache_table[i]/)){
-
+        for(;idx<CACHE_SIZE;idx++){
+            cur=&buffer_cache_table[idx];
+            if(cur->sector==UNUNSED){
+                return cur;
+            }
+            else if(cur->ref==true){
+                cur->ref=false;
+            }else{
+                if(cur->dirty==true){
+                    bc_flush_entry(&cur);
+                }
+                bc_clock=&buffer_cache_table[idx+1];
+                return cur;
             }
         }
     }
+    NOT_REACHED();
+}
+
+
+bool bc_write(block_sector_t sector_idx, void* buffer,off_t bytes_written,int chunk_size,int sector_ofs){
+    // find first
     
+    // if not , read to buffer cache
+
+    // select victim
+
+    // write that buffer cache
+
 }
