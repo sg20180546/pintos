@@ -40,5 +40,6 @@
         "main.h": "c",
         "cache.h": "c",
         "free-map.h": "c"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

@@ -6,12 +6,20 @@
 #include "devices/block.h"
 #include <list.h>
 struct bitmap;
+
+struct indirect_node_disk{
+  block_sector_t sector[128];
+};
+
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
+    // block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
     uint32_t unused[125];               /* Not used. */
+    block_sector_t direct[123];
+    block_sector_t single_indirect;
+    block_sector_t double_indirect;
   };
 
 struct inode 
@@ -23,6 +31,8 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
   };
+
+
 
 void inode_init (void);
 bool inode_create (block_sector_t, off_t);

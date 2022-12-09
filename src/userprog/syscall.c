@@ -219,7 +219,7 @@ static void syscall_create(struct intr_frame* f)
   }
   sema_down(file_handle_lock);
   f->eax=filesys_create(file,initial_size);
-
+  // printf("%d\n",file.inode.length);
   sema_up(file_handle_lock);
   // ASSERT(file_handle_lock->value==1);
 }
