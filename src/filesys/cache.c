@@ -77,14 +77,9 @@ bool bc_read(struct inode* inode,block_sector_t sector_idx, void* buffer,off_t b
     if(bc==NULL){
         // evict
         bc=bc_select_victim();
-        // construct buffer cache
-        // EXPECT_NE(3221479280,sector_idx);
         bc_init(bc,inode,sector_idx);
         block_read(fs_device,sector_idx,bc->data);
-        // bc->inode=inode;
-        // bc->sector=sector_idx;
-        // bc->dirty=false;
-        // bc->ref=true;
+
 
     }else{
 
@@ -105,25 +100,25 @@ struct buffer_head* bc_select_victim(void){
     {
         for(;bc_clock_idx<CACHE_SIZE;bc_clock_idx++){
             cur=buffer_cache_table[bc_clock_idx];
-            if(lock_try_acquire(&cur->lock)){
+            // if(lock_try_acquire(&cur->lock)){
                 if(cur->sector==UNUNSED){
-                    lock_release(&cur->lock);
+                    // lock_release(&cur->lock);
                     bc_clock_idx++;
                     goto ret;
                     //return cur;
                 }
                 else if(cur->ref==true){
                     cur->ref=false;
-                    lock_release(&cur->lock);
+                    // lock_release(&cur->lock);
                 }else{
                     if(cur->dirty==true){
                         bc_flush_entry(cur);
                     }
                     bc_clock_idx++;
-                    lock_release(&cur->lock);
+                    // lock_release(&cur->lock);
                     goto ret;
                 }
-            }
+            // }
         }
         bc_clock_idx=0;
     }
@@ -146,7 +141,7 @@ bool bc_write(struct inode* inode,block_sector_t sector_idx, void* buffer,off_t 
         //block_read()
         new_bc_flag=true;
     }
-    lock_acquire(&bc->lock);
+    // lock_acquire(&bc->lock);
     EXPECT_NE(bc,NULL);
     // select victim
 
@@ -163,7 +158,7 @@ bool bc_write(struct inode* inode,block_sector_t sector_idx, void* buffer,off_t 
 
     bc->dirty=true;
     bc->ref=true;
-    lock_release(&bc->lock);
+    // lock_release(&bc->lock);
     lock_release(&bc_lock);
 }
 

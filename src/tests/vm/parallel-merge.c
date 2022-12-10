@@ -128,8 +128,11 @@ verify (void)
   for (hist_idx = 0; hist_idx < sizeof histogram / sizeof *histogram;
        hist_idx++)
     {
+      // printf("%d\n",hist_idx);
       while (histogram[hist_idx]-- > 0) 
-        {
+        { 
+          // if(buf2[buf_idx]!=hist_idx)
+          //   printf("%d buf2[buf_idx]: %d , hist idx %d\n",buf_idx,buf2[buf_idx],hist_idx); //0
           if (buf2[buf_idx] != hist_idx)
             fail ("bad value %d in byte %zu", buf2[buf_idx], buf_idx);
           buf_idx++;

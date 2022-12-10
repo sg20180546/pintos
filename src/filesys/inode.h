@@ -6,7 +6,7 @@
 #include "devices/block.h"
 #include <list.h>
 struct bitmap;
-
+#define DIRECT_NODE_ENTIRES 124
 struct indirect_node_disk{
   block_sector_t sector[128];
 };
@@ -16,8 +16,8 @@ struct inode_disk
     // block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
-    block_sector_t direct[123];
+    // uint32_t unused[125];               /* Not used. */
+    block_sector_t direct[DIRECT_NODE_ENTIRES];
     block_sector_t single_indirect;
     block_sector_t double_indirect;
   };
