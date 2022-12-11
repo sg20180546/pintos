@@ -106,19 +106,21 @@ byte_to_sector (const struct inode *inode, off_t pos) // pos : byte
   // else
   //   return -1;
 
-  block_sector_t* buf;
+  // block_sector_t* buf;
+  struct indirect_node_disk* idisk=malloc(sizeof* idisk);
   block_sector_t ret;
   if(pos<DIRECT_NODE_EXTENT){
-    return inode->data.direct[pos/BLOCK_SECTOR_SIZE];
+    ret=inode->data.direct[pos/BLOCK_SECTOR_SIZE];
   }else if(pos<DIRECT_NODE_EXTENT+SINGLE_INDIRECT_EXTENT){
     pos-=DIRECT_NODE_EXTENT;
-    buf=malloc(BLOCK_SECTOR_SIZE);
-    block_read(fs_device,inode->data.single_indirect,buf);
-    ret=buf[pos/BLOCK_SECTOR_SIZE];
-    free(buf);
-    return ret;
+    // buf=malloc(BLOCK_SECTOR_SIZE);
+    // idisk=malloc(sizeof* idisk);
+    block_read(fs_device,inode->data.single_indirect,idisk);
+    ret=idisk->sector[pos/BLOCK_SECTOR_SIZE];
+    // free(buf);
+    // return ret;
   }else if(pos<DIRECT_NODE_EXTENT+SINGLE_INDIRECT_EXTENT+DOUBLE_INDIRECT_EXTENT){
-    bf();
+    // bf();
     pos-=(DIRECT_NODE_EXTENT+SINGLE_INDIRECT_EXTENT);
     /*
     513 : 0 1
@@ -132,17 +134,17 @@ byte_to_sector (const struct inode *inode, off_t pos) // pos : byte
     block_sector_t double_indir=pos>>16;
     block_sector_t single_indir=pos&(SINGLE_INDIRECT_EXTENT-1)>>9;
 
-    buf=malloc(BLOCK_SECTOR_SIZE);
-    block_read(fs_device,inode->data.double_indirect,buf);
-    ret=buf[double_indir];
+    block_read(fs_device,inode->data.double_indirect,idisk);
+    ret=idisk->sector[double_indir];
 
-    block_read(fs_device,ret,buf);
-    ret=buf[single_indir];
-    free(buf);
-    return ret;
+    block_read(fs_device,ret,idisk);
+    ret=idisk->sector[single_indir];
+
   }else{
-    return -1;
+    ret=-1;
   }
+  free(idisk);
+  return ret;
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -265,6 +267,7 @@ inode_get_inumber (const struct inode *inode)
    If INODE was also a removed inode, frees its blocks. */
 
 static void inode_release(struct inode* inode){
+  // printf("inode release\n");
   size_t file_sector_size=inode->data.length/BLOCK_SECTOR_SIZE + 1;
   struct inode_disk* idisk=&inode->data;
   struct indirect_node_disk * indirect_disk=malloc(sizeof*indirect_disk);
@@ -370,6 +373,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     {
       /* Disk sector to read, starting byte offset within sector. */
       block_sector_t sector_idx = byte_to_sector (inode, offset);
+      // printf("sector idx :%d\n",sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
@@ -450,6 +454,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     {
 
       block_sector_t sector_idx = byte_to_sector (inode, offset);
+      // if(sector_idx>300)
+      // printf("byte to seoctir : %d\n",sector_idx);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */

@@ -77,6 +77,7 @@ int main (void) NO_RETURN;
 int
 main (void)
 {
+  // after loader.S
   char **argv;
   /* Clear BSS. */  
   bss_init ();
@@ -122,6 +123,8 @@ main (void)
 
   serial_init_queue ();
   timer_calibrate ();
+
+////////////////////////////////////////////////
 
 #ifdef FILESYS
   /* Initialize file system. */

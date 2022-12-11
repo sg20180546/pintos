@@ -12,12 +12,37 @@ struct dir
   };
 
 /* A single directory entry. */
+  /*
+    Short File Name
+    name : 0~7 (8)
+    extension : 8~10 (3)
+    attribute : 11 (1) # 0x1(RO), 0x2(hide), 0x4(OS system), 0x8(disk volume label), 0x10(dir), 0x20(generic)
+    reserved : 12~13 (2)
+    create time : 14~15 (2)
+    create data : 16~17 (2)
+    last accessed date : 18~19(2)
+    STARTING CLUSTER HI : 20~21 (2)
+    last written time : 22~23 (2)
+    last writte date : 24~25 (2)
+    STARGING CLUSTER LO : 26~27 (2)
+    FILE SIZE : 28~31 (4)
+    -----------
+    if starting_cluster == 0x000006,
+    sector_per_cluster = 0x40 (get by BIOS parameter block off 13)
+    2 : 480(root directory)+32
+    3 : 576
+    4 : 640
+    5 : 704
+    6 : 768 <- here !
+  */
 struct dir_entry 
   {
     block_sector_t inode_sector;        /* Sector number of header. */
     char name[NAME_MAX + 1];            /* Null terminated file name. */
     bool in_use;                        /* In use or free? */
-  }; // size : 20
+  }; // size : 20 , FAT32 : 32 byte
+
+
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */

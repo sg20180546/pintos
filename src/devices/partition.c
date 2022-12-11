@@ -67,6 +67,42 @@ read_partition_table (struct block *block, block_sector_t sector,
   struct partition_table
     {
       uint8_t loader[446];      /* Loader, in top-level partition table. */
+      /*
+        {CONTENT} : {OFFSET} ({SIZE})
+        
+        FAT 32 Bootsector 
+
+        Jump boot code : 0~2 (3)
+        OEM ID : 3~10 (8)
+
+        ----- BIOS Parameter Block Data : 78 byte -----
+        Bytes per sector : 11~12 (2) # 0x200 -> 512byte
+        Sector per Cluster : 13 (1) # 0x8 : -> 4KB
+        Reserved Sector Count : 14~15 (2)
+        # of FAT : 16 (1)
+        # of Root Dir Entry : 17~18 (2)
+        Total Sectors 16 : 19~20 (2)
+        Media Type : 21 (1)
+        FAT Size 16 : 22~23 (2)
+        Sector per Track : 24~25 (2)
+        # of Heads : 26~27 (2)
+        Hidden Sector 28~31 (4)
+        Total Sector 32 : 32~35 (4)
+        FAT 32 Size : 36~39 (4)
+        Ext Flags : 40~41 (2)
+        FS version : 42~43 (2)
+        Root Dir Cluster 44~47 (4)
+        FS info : 48~49 (2)
+        Backup Boot Sector : 50~51 (2)
+        Reserved : 52~63 (12)
+        Drive num : 64 (1)
+        Reserved : 65 (1)
+        Boot Flag : 66 (1)
+        Volume ID : 67~70 (4)
+        Volume Label : 71~81 (11)
+        FS Type 82~89 (8) # FAT32 in ascii
+      */
+      
       struct partition_table_entry partitions[4];       /* Table entries. */
       uint16_t signature;       /* Should be 0xaa55. */
     } // size == 512 byte
@@ -136,7 +172,6 @@ read_partition_table (struct block *block, block_sector_t sector,
       else
         {
           ++*part_nr;
-
           found_partition (block, e->type, e->offset + sector,
                            e->size, *part_nr);
         }
